@@ -82,7 +82,7 @@ class Parser:
                 pointer2 += 1
             return df.reset_index(drop=True)
 
-        columns = ['pn', 'desc', 'fn', 'dnums', 'assy', 'sch']
+        columns = ['pn', 'desc', 'fn', 'dnums', 'illustration data']
         df = self.to_dataframe()
         data = [Parser._re_getcols(row) for index, row in df.iterrows()]
         filtered = pd.concat([pd.DataFrame(data, columns=columns), df['bold']], axis=1)
@@ -93,34 +93,43 @@ class Parser:
         """Use regex to filter out data from series"""
 
         desc, fn = _re_fn_name(series['desc'])
-        assy, sch = _re_ill(series['technical'])
         output = [
             _re_pn(series['pn']),
             desc,
             fn,
             _re_doc_num(series['technical']),
-            assy,
-            sch
+            illustration_dict(series['technical'])
         ]
         return output
+
+
+def illustration_dict(string):
+    """Creates a dictionary of all important data regarding illustrations
+
+    returns [{'num': num, 'type': sch/assy, 'dnum': DXXXXXXX},...]
+    """
+    string = re.sub(r'\W+', '', string).replace(' ', '')
+    if re.findall(r'refertoill.', string, re.IGNORECASE):
+        ill_dict = [
+            {'num': result[0], 'type': result[1], 'dnum': result[2]}
+            for result in re.findall(r'(\d+)(assy|sch)(D\d+)', string, re.IGNORECASE)
+        ]
+        return ill_dict
 
 
 def _re_pn(string):
     """Get the part number"""
 
-    if len(string) <= 7:  # For part numbers not in format of 5XXXXXX
-        return int(string)
-    else:
-        # Find any/ all digits with format of 6 concurrent numbers
-        num = re.findall(r'\d\d\d\d\d\d\d', string)
-        return int(num[0]) if num else None
+    # Find any/ all digits with format of 6 concurrent numbers
+    num = re.findall(r'\d+', string)
+    return int(num[0]) if num else None
 
 
 def _re_fn_name(string):
     """Find function number"""
 
     # Looks for (#X) as regex
-    fn = re.findall(r'\(#(\+\d+)\)', string)
+    fn = re.findall(r'\(#(\d+)\)', string)
     if fn:
         to_pop = f'(#{fn[0]})'
         string = string.replace(to_pop, '').strip().replace('\n', '')
@@ -130,29 +139,11 @@ def _re_fn_name(string):
     return string, int(fn[0]) if fn else None
 
 
-# def _re_ill(string):
-#     """Finds illustration number"""
-#
-#     if re.findall(r'refertoill.', string.replace(' ', ''), re.IGNORECASE):
-#         assy = re.findall(r'assy', string.replace(' ', ''), re.IGNORECASE)
-#         sch = re.findall(r'sch', string.replace(' ', ''), re.IGNORECASE)
-#         return True if assy else False, True if sch else False
-#     return False, False
-
-def _re_ill(string):
-    """Finds Illustration required and illustration number"""
-    re.sub(r'\W+', '', string)
-    string = string.replace(' ', '')
-    if re.findall(r'refertoill.', string, re.IGNORECASE):
-        assy = re.findall(r'(\d+)assy', string, re.IGNORECASE)
-        sch = re.findall(r'(\d+)sch', string, re.IGNORECASE)
-        return assy[0] if assy else False, sch[0] if sch else False
-    return False, False
-
-
 def _re_doc_num(string):
-    """Finds document number, same logic as pn but with D in front"""
+    """Finds document number, same logic as pn but with D in front
 
+    used for verification purposes
+    """
     dnums = re.findall(r'D\d+', string)
     return dnums if dnums else None
 
@@ -297,5 +288,5 @@ if __name__ == '__main__':
     path = 'C:\\Users\\steven.fu\\Documents\\CCL Builder\\Workspace'
     word_doc = os.path.join(path, 'Wombat CCL.docx')
     avl_bom = os.path.join(path, 'revg.csv')
-    #
-    # BuildPackage('ccl package_Rev G-SAMPLE_take3.zip', word_doc, avl_bom)
+
+    BuildPackage('ccl package_Rev G-SAMPLE_take3.zip', word_doc, avl_bom)

@@ -1,3 +1,11 @@
+"""API for Enovia
+
+Date: 2020-03-04
+Revision: C
+Author: Steven Fu
+"""
+
+
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
