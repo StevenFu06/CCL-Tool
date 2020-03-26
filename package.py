@@ -285,8 +285,13 @@ def BuildPackage(save_path: os.path, word_doc: os.path, avl_bom: os.path):
 
 
 if __name__ == '__main__':
-    path = 'C:\\Users\\steven.fu\\Documents\\CCL Builder\\Workspace'
-    word_doc = os.path.join(path, 'Wombat CCL.docx')
-    avl_bom = os.path.join(path, 'revg.csv')
+    parentk = Parent('revk.csv')
+    parentg = Parent('revg.csv')
 
-    BuildPackage('ccl package_Rev G-SAMPLE_take3.zip', word_doc, avl_bom)
+    parentk.build_tree()
+    with open('treek.json', 'w') as write:
+        json.dump(parentk.tree, write, indent=4)
+
+    parentg.build_tree()
+    with open('treeg.json', 'w') as write:
+        json.dump(parentg.tree, write, indent=4)
