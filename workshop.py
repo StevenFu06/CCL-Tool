@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import package as pk
 from fuzzywuzzy import fuzz
+from compare import recursive_compare
 
 
 with open('treek.json', 'r') as read:
@@ -20,7 +21,8 @@ def type_split(a, b):
     desca = a[1]
     descb = b[1]
     if '*' in desca and '*' in descb:
-        if descb.split('*')[0] == descb.split('*')[0]:
+        if desca.split('*')[0] == descb.split('*')[0]:
+            print(descb.split('*')[0])
             return True
     return False
 
@@ -65,5 +67,6 @@ def rec_compare(obja, objb, boma, bomb):
                 rec_compare(obja[key], objb[keyb], boma, bomb)
 
 
-rec_compare(revg, revk, bomg, bomk)
-print(total_iter)
+# rec_compare(revg, revk, bomg, bomk)
+# print(total_iter)
+recursive_compare(revg, bomg, revk, bomk)
