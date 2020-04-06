@@ -34,12 +34,12 @@ def difference(a, b):
     pa = [pn.split()[1] for pn in a]
     pb = [pn.split()[1] for pn in b]
     difference_list = []
-    for pn in pa:
-        if pn not in pb:
-            temp_index = pa.index(pn)
-            pa.pop(temp_index)
-            index_a = int(a.pop(temp_index).split()[0])
-            difference_list.append([index_a, pn])
+    for pn in range(len(pa)):
+
+        if pa[pn] not in pb:
+            index_a = int(a[pn].split()[0])
+            difference_list.append([index_a, pa[pn]])
+
     return difference_list
 
 
@@ -58,15 +58,14 @@ def intersect(a, b):
     pa = [pn.split()[1] for pn in a]
     pb = [pn.split()[1] for pn in b]
     intersect_list = []
-    for pn in pa:
-        if pn in pb:
-            temp_indexa = pa.index(pn)
-            pa.pop(temp_indexa)
-            temp_indexb = pb.index(pn)
-            pb.pop(temp_indexb)
+    for pn in range(len(pa)):
+        if pa[pn] in pb:
+            index_a = int(a[pn].split()[0])
+            index_b = int(b[pb.index(pa[pn])].split()[0])
 
-            index_a = int(a.pop(temp_indexa).split()[0])
-            index_b = int(b.pop(temp_indexb).split()[0])
+            b.pop(pb.index(pa[pn]))
+            pb.pop(pb.index(pa[pn]))
+
             intersect_list.append([index_a, index_b])
     return intersect_list
 
@@ -92,7 +91,9 @@ def is_updated(old_tuple, exclusive_new: list, threshold_full=50, threshold_part
     return False, False
 
 
+not_found = []
 def recursive_compare(old_parent, old_bom, new_parent, new_bom):
+    global not_found
     # old intersect not new
     exclusive_old = difference(list(old_parent), list(new_parent))
     exclusive_old_tuples = [
@@ -105,8 +106,6 @@ def recursive_compare(old_parent, old_bom, new_parent, new_bom):
         (new_bom.loc[idx, 'F/N'], new_bom.loc[idx, 'Description'])
         for idx, pn in exclusive_new
     ]
-
-    not_found = []
     for old_tuple in exclusive_old_tuples:
         match, new_tuple = is_updated(old_tuple, exclusive_new_tuples)
 
@@ -123,20 +122,14 @@ def recursive_compare(old_parent, old_bom, new_parent, new_bom):
 
             updated_index = exclusive_new[exclusive_new_tuples.index(new_tuple)][0]
             updated_pn = new_bom.loc[updated_index, "Name"]
+            # print(f'{old_index} {updated_pn}', f'{old_index} {old_pn}')
             old_parent[f'{old_index} {updated_pn}'] = old_parent.pop(f'{old_index} {old_pn}')
-
             if match == 'full':
                 print(f'{old_tuple} has been updated to {new_tuple}')
-                print()
             else:
                 print(f'Partial match for {old_tuple} and {new_tuple}')
-                print()
         else:
             not_found.append(f'{old_index} {old_pn}')
-
-    if not_found:
-        print(f'{not_found} were not found')
-        print()
 
     for idxa, idxb in intersect(list(old_parent), list(new_parent)):
         # When getting new part number need to use new_bom since that is what everything is
@@ -152,3 +145,91 @@ def recursive_compare(old_parent, old_bom, new_parent, new_bom):
                               old_bom,
                               new_parent[f'{idxb} {new_bom.loc[idxb, "Name"]}'],
                               new_bom)
+
+
+def bom_compare(old_parent, old_bom, new_parent, new_bom):
+    global not_found
+
+    def recursive_scan(find, obj):
+        for key, value in obj.items():
+            if value:
+                found = recursive_scan(find, value)
+                if found is not None:
+                    return found
+            if find in value:
+                return key
+        return None
+
+    def insert(obj, key, new_key, new_value):
+        for k, v in obj.items():
+            if v:
+                obj[k] = insert(v, key, new_key, new_value)
+        if key in obj:
+            obj[key][new_key] = new_value
+        return obj
+
+    def pop(obj, key):
+        for key1, value in obj.items():
+            if value:
+                found = pop(value, key)
+                if found is not None:
+                    return found
+        if key in obj:
+            return obj.pop(key)
+        return None
+
+    def rearrange(obj, old_key, new_key):
+        branch = pop(obj, old_key)
+        return insert(obj, new_key, old_key, branch)
+
+    recursive_compare(old_parent, old_bom, new_parent, new_bom)
+    prev_len = 0
+    while len(not_found) != prev_len:
+        for item in not_found:
+            pn = item.split(' ')[1]
+            if pn in new_bom['Name'].values or int(item.split(' ')[1]) in new_bom['Name'].values:
+                index = new_bom.loc[new_bom['Name'] == pn].index[0]
+                new_key = f'{index} {pn}'
+
+                # Found the updated part number for the nbew parent
+                updated_pn = recursive_scan(new_key, new_parent).split(' ')[1]
+
+                if updated_pn in old_bom['Name'].values:
+                    # using updated part number get the new index number
+                    index = old_bom.loc[old_bom['Name'] == updated_pn].index[0]
+                    old_updated_key = f'{index} {updated_pn}'
+                    old_parent = rearrange(old_parent, item, old_updated_key)
+                    print(f'{item} was rearranged to be under {updated_pn}')
+                else:
+                    print(f'{item} was found but parent was not')
+            else:
+                print(f'{pn} couldnt be re-arranged')
+
+        prev_len = len(not_found)
+        not_found = []
+        print('recurssive compare called')
+        recursive_compare(old_parent, old_bom, new_parent, new_bom)
+    print(not_found)
+    print(f'{len(not_found)} values are in the not_found list')
+
+
+if __name__ == '__main__':
+    import json
+
+    with open('treeg.json', 'r') as read:
+        old_tree = json.load(read)
+    old_bom = pd.read_csv('revg.csv')
+
+    with open('treek.json', 'r') as read:
+        new_tree = json.load(read)
+    new_bom = pd.read_csv('revk.csv')
+    #
+    # with open('Fake Bom\\tree_old.json', 'r') as read:
+    #     old_tree = json.load(read)
+    # old_bom = pd.read_csv('Fake Bom\\old.csv')
+    #
+    # with open('Fake Bom\\tree_new.json', 'r') as read:
+    #     new_tree = json.load(read)
+    # new_bom = pd.read_csv('Fake Bom\\new.csv')
+
+    bom_compare(old_tree, old_bom, new_tree, new_bom)

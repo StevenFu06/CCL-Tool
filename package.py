@@ -285,13 +285,13 @@ def BuildPackage(save_path: os.path, word_doc: os.path, avl_bom: os.path):
 
 
 if __name__ == '__main__':
-    parentk = Parent('revk.csv')
-    parentg = Parent('revg.csv')
+    old = Parent('Fake Bom\\old.csv')
+    new = Parent('Fake Bom\\new.csv')
 
-    parentk.build_tree()
-    with open('treek.json', 'w') as write:
-        json.dump(parentk.tree, write, indent=4)
+    old.build_tree()
+    with open('Fake Bom\\tree_old.json', 'w') as write:
+        json.dump(old.tree, write, indent=4)
 
-    parentg.build_tree()
-    with open('treeg.json', 'w') as write:
-        json.dump(parentg.tree, write, indent=4)
+    new.build_tree()
+    with open('Fake Bom\\tree_new.json', 'w') as write:
+        json.dump(new.tree, write, indent=4)
