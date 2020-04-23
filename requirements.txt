@@ -5,8 +5,8 @@ fuzzywuzzy==0.18.0
 lxml==4.5.0
 numpy==1.18.1
 pandas==1.0.1
+pdf2image==1.12.1
 pdfminer.six==20200402
-Pillow==7.1.1
 pycryptodome==3.9.7
 pytesseract==0.3.4
 python-dateutil==2.8.1
@@ -17,5 +17,4 @@ six==1.14.0
 sortedcontainers==2.1.0
 soupsieve==2.0
 urllib3==1.25.8
-Wand==0.5.9
 xlrd==1.2.0

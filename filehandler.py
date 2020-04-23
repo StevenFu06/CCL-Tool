@@ -12,8 +12,6 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 
 import pytesseract as pt
-from wand.image import Image as wi
-from PIL import Image
 
 import pdf2image
 
@@ -31,30 +29,14 @@ def pdf_to_text_miner(path):
 
         return temp_file.getvalue()
 
-#
-# def pdf_to_text_tess(path, tesseract_path, resolution=250):
-#     # Set tesseract path
-#     pt.pytesseract.tesseract_cmd = tesseract_path
-#
-#     # Read pdf as image
-#     pdf_img = wi(filename=path, resolution=resolution)
-#     # Convert pages into bytes blobs
-#     blobs = [wi(image=img).make_blob('png') for img in pdf_img.sequence]
-#
-#     # Convert blob into PIL image using ioBytes module
-#     # Then extract text using Google's tesseract
-#     text = [pt.image_to_string(Image.open(io.BytesIO(blob)), lang='eng') for blob in blobs]
-#
-#     # Memory clean up
-#     del pdf_img, blobs
-#     return ' '.join(text)
 
 def pdf_to_text_tess(path, tesseract_path, resolution=250):
     # Set tesseract path
     pt.pytesseract.tesseract_cmd = tesseract_path
+    poppler = 'Popper\\bin'
 
     # Read pdf as image
-    pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True)
+    pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True, poppler=poppler)
 
     # Extract text using Google's tesseract
     text = [pt.image_to_string(page, lang='eng') for page in pages]
@@ -82,7 +64,7 @@ def assembly_match(string):
 def identify(path):
     """Identify the type of file the pdf is (sch, assy or neither)"""
 
-    tesseract_path = 'D:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+    tesseract_path = 'Tesseract-OCR\\tesseract.exe'
     try:
         text = pdf_to_text_miner(path)
         # Added an additional check to see if no text was picked up by the miner
@@ -108,14 +90,17 @@ def identify(path):
 def multiprocess(document):
     current_path = document[0]
     file = document[1]
-    if file[-3:] == 'pdf':
-        print(f'Scanning {file}')
-        file_path = os.path.join(current_path, file)
-        result = identify(file_path)
-        print(f'Identified to be {result}')
-        print()
-        dest_path = os.path.join(result, file)
-        copyfile(file_path, os.path.join('identify', dest_path))
+    try:
+        if file[-3:] == 'pdf':
+            print(f'Scanning {file}')
+            file_path = os.path.join(current_path, file)
+            result = identify(file_path)
+            print(f'Identified to be {result}')
+            print()
+            dest_path = os.path.join(result, file)
+            copyfile(file_path, os.path.join('identify', dest_path))
+    except:
+        copyfile(os.path.join(current_path, file), os.path.join('identify', os.path.join('failed', file)))
 
 
 if __name__ == '__main__':
