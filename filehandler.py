@@ -36,7 +36,7 @@ def pdf_to_text_tess(path, tesseract_path, resolution=250):
     poppler = 'Popper\\bin'
 
     # Read pdf as image
-    pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True, poppler=poppler)
+    pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True, poppler_path=poppler)
 
     # Extract text using Google's tesseract
     text = [pt.image_to_string(page, lang='eng') for page in pages]
