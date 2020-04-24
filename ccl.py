@@ -1,10 +1,13 @@
-from compare import Rearrange, Bom, Tracker
 from docx.api import Document
 from docx.shared import RGBColor
-from package import Parser, Parent
+
 import pandas as pd
 import json
+import os
 
+from enovia import Enovia
+from package import Parser, Parent
+from compare import Rearrange, Bom, Tracker
 
 class CCL:
 
@@ -75,22 +78,13 @@ class CCL:
         self.document.save('test.docx')
 
 
+
+
+
+
+
+
+
 if __name__ == '__main__':
-    table = Parser('Fake Bom\\Sample CCL with enter.docx')
 
-    with open('treea.json', 'r') as read:
-        old_tree = json.load(read)
-    old_bom = pd.read_csv('reva.csv')
-    bom_old = Bom(old_bom, old_tree)
-
-    with open('treec.json', 'r') as read:
-        new_tree = json.load(read)
-    new_bom = pd.read_csv('revc.csv')
-    bom_new = Bom(new_bom, new_tree)
-
-    tracker = Tracker()
-    Rearrange(bom_old, bom_new, tracker)
-    print(tracker.combine_found())
-    # ccl = CCL('rev a bugatti.docx', 'reva.csv')
-    # ccl.update('revc.csv', old_tree, new_tree)
-    # # ccl.save()
+    collect_documents('meyh', ',ey', 'ccl.docx', 'test')

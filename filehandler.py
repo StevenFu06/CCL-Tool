@@ -1,10 +1,12 @@
 import io
 import re
 import os
+from shutil import copyfile
+
+from enovia import Enovia
+from package import Parser
 
 from multiprocessing import Pool
-
-from shutil import copyfile
 
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
@@ -12,14 +14,12 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 
 import pytesseract as pt
-
 import pdf2image
 
 
 def pdf_to_text_miner(path):
     pdf_manager = PDFResourceManager()
     with io.StringIO() as temp_file:
-
         with TextConverter(pdf_manager, temp_file, laparams=LAParams()) as converter:
             interpreter = PDFPageInterpreter(pdf_manager, converter)
 
@@ -103,21 +103,62 @@ def multiprocess(document):
         copyfile(os.path.join(current_path, file), os.path.join('identify', os.path.join('failed', file)))
 
 
+class DocumentCollector:
+
+    def __init__(self, username, password, ccl, save_dir, processes=1):
+        self.username = username
+        self.password = password
+        self.ccl = ccl
+        self.filtered = None
+        self.save_dir = save_dir
+        self.processes = processes
+
+    def get_filtered(self):
+        self.filtered = Parser(self.ccl).filter()
+
+    def multidownload(self, pn: str):
+        temp_path = os.path.join(self.save_dir, 'temp', pn)
+        os.makedirs(temp_path)
+        with Enovia(self.username, self.password, headless=True) as enovia:
+            enovia.search(pn)
+            try:
+                enovia.open_latest_state('Prototype')
+            except FileNotFoundError:
+                enovia.open_latest_state('Released')
+            enovia.download_specification_files(temp_path)
+
+    def download(self):
+        os.makedirs(os.path.join(self.save_dir, 'temp'))
+        if self.filtered is None:
+            self.get_filtered()
+        pns = self.filtered['pn'].astype(str)
+        pns = [pn.replace('.0', '') for pn in pns]
+
+        pool = Pool(self.processes)
+        pool.map(self.multidownload, pns)
+
+
+def collect_documents(username, password, ccl_word, save_dir):
+    def format_name(pn, desc, fn):
+        pn = pn.astype(str).replace('.0', '')
+        fn = fn.astype(str).replace('.0', '')
+        return pn, desc, fn
+
+    enovia = Enovia(username, password, headless=True)
+    filtered = Parser(ccl_word).filter()
+    path_bold = save_dir
+
+    for idx in filtered.index:
+        pn, desc, fn = format_name(filtered.loc[idx, "pn"], filtered.loc[idx, "desc"], filtered.loc[idx, "fn"])
+        folder_name = f'{pn} {desc} (#{fn})'
+
+        if filtered.loc[idx, 'bold'] == True:
+            path_bold = os.path.join(save_dir, folder_name)
+
+        elif filtered.loc[idx, 'bold'] == False:
+            sub_path = os.path.join(path_bold, folder_name)
+
+
 if __name__ == '__main__':
-    import time
-
-    path = 'Illustrations'
-    ccl_docs = os.walk('CCL Documents')
-
-    documents = []
-    for root, dir, files in ccl_docs:
-        for file in files:
-            documents.append((root, file))
-
-    pool = Pool(12)
-
-    start = time.time()
-    pool.map(multiprocess, documents)
-    end = time.time()
-
-    print(f'scanning {len(documents)} documents took {end - start}s')
+    documents = DocumentCollector('test', 'test', 'ccl.docx', os.getcwd())
+    documents.download()
