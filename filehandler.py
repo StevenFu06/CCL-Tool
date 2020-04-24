@@ -1,7 +1,7 @@
 import io
 import re
 import os
-from shutil import copyfile
+from shutil import copyfile, rmtree
 
 from enovia import Enovia
 from package import Parser
@@ -105,29 +105,38 @@ def multiprocess(document):
 
 class DocumentCollector:
 
-    def __init__(self, username, password, ccl, save_dir, processes=1):
+    def __init__(self, username, password, ccl, save_dir, processes=1, headless=True):
         self.username = username
         self.password = password
         self.ccl = ccl
         self.filtered = None
         self.save_dir = save_dir
         self.processes = processes
+        self.failed = []
+        self.headless = headless
 
     def get_filtered(self):
         self.filtered = Parser(self.ccl).filter()
 
     def multidownload(self, pn: str):
         temp_path = os.path.join(self.save_dir, 'temp', pn)
-        os.makedirs(temp_path)
-        with Enovia(self.username, self.password, headless=True) as enovia:
-            enovia.search(pn)
-            try:
-                enovia.open_latest_state('Prototype')
-            except FileNotFoundError:
-                enovia.open_latest_state('Released')
-            enovia.download_specification_files(temp_path)
+        try:
+            print(f'{pn} is downloading')
+            if not os.path.exists(temp_path):
+                os.makedirs(temp_path)
+            with Enovia(self.username, self.password, headless=self.headless) as enovia:
+                enovia.search(pn)
+                enovia.open_last_result()
+                enovia.download_specification_files(temp_path)
+            print(f'{pn} has downloaded sucessfully')
+            return None
+        except:
+            print(f'{pn} failed to download')
+            return pn
 
     def download(self):
+        if os.path.exists(os.path.join(self.save_dir, 'temp')):
+            rmtree(os.path.join(self.save_dir, 'temp'))
         os.makedirs(os.path.join(self.save_dir, 'temp'))
         if self.filtered is None:
             self.get_filtered()
@@ -135,7 +144,7 @@ class DocumentCollector:
         pns = [pn.replace('.0', '') for pn in pns]
 
         pool = Pool(self.processes)
-        pool.map(self.multidownload, pns)
+        self.failed = list(pool.map(self.multidownload, pns))
 
 
 def collect_documents(username, password, ccl_word, save_dir):
