@@ -300,7 +300,7 @@ class DocumentCollector:
 
 if __name__ == '__main__':
     test = Parser('ccl.docx')
-    print(test.filter())
+    test.filter().to_csv('filtered1.csv')
     # document = DocumentCollector('Steven.Fu', 'hipeople1S', 'ccl.docx', 'ccl documents', processes=4)
     # document.download()
     # print(document.failed)

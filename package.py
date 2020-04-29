@@ -52,11 +52,14 @@ class Parser:
         :return dataframe with columns: columns and data of the raw table document
         """
         columns = ['pn', 'desc', 'vendor', 'model', 'technical', 'standards', 'marks', 'bold']
-        to_df = [
-            [cell.text.strip() for cell in row.cells] +
-            [True if row.cells[0].paragraphs[0].runs[0].bold else False]
-            for row in self.table.rows
-        ]
+        to_df = []
+        for row in self.table.rows:
+            temp = [cell.text.strip() for cell in row.cells]
+            try:
+                bold = True if row.cells[0].paragraphs[0].runs[0].bold else False
+            except IndexError: # Note when this happens it means that the text was a hyper link or not plain text
+                bold = False
+            to_df.append(temp + [bold])
         return pd.DataFrame(data=to_df, columns=columns)
 
     def filter(self):
