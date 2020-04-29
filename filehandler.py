@@ -1,10 +1,11 @@
 import io
 import re
 import os
-from shutil import copyfile, rmtree
+from zipfile import ZipFile
+from shutil import copyfile, rmtree, copytree
 
 from enovia import Enovia
-from package import Parser
+from package import Parser, _re_doc_num
 
 from multiprocessing import Pool
 
@@ -33,7 +34,7 @@ def pdf_to_text_miner(path):
 def pdf_to_text_tess(path, tesseract_path, resolution=250):
     # Set tesseract path
     pt.pytesseract.tesseract_cmd = tesseract_path
-    poppler = 'Popper\\bin'
+    poppler = 'Poppler\\bin'
 
     # Read pdf as image
     pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True, poppler_path=poppler)
@@ -71,36 +72,104 @@ def identify(path):
         if len(text) < 500:
             raise Exception
         elif schematic_match(text):
-            return 'schematic'
+            return 'Sch'
         elif assembly_match(text):
-            return 'assembly'
+            return 'Assy'
         else:
-            return 'none'
+            return None
     except Exception as e:
         text = pdf_to_text_tess(path, tesseract_path)
-        print(f'exception "{e}" happened had to use tesseract')
         if schematic_match(text):
-            return 'schematic'
+            return 'Sch'
         elif assembly_match(text):
-            return 'assembly'
+            return 'Assy'
         else:
-            return 'none'
+            return None
 
 
-def multiprocess(document):
-    current_path = document[0]
-    file = document[1]
-    try:
-        if file[-3:] == 'pdf':
-            print(f'Scanning {file}')
-            file_path = os.path.join(current_path, file)
-            result = identify(file_path)
-            print(f'Identified to be {result}')
-            print()
-            dest_path = os.path.join(result, file)
-            copyfile(file_path, os.path.join('identify', dest_path))
-    except:
-        copyfile(os.path.join(current_path, file), os.path.join('identify', os.path.join('failed', file)))
+class Illustration:
+
+    def __init__(self, ccl, save_dir, processes=1):
+        self.ccl = ccl
+        self.processes = processes
+        self.save_dir = save_dir
+        self.filtered = None
+        self.scan_dir = None
+
+    def get_filtered(self):
+        self.filtered = Parser(self.ccl).filter()
+
+    def _multi_identify(self, pn):
+        if self.scan_dir is None:
+            raise FileNotFoundError('Scan directory is not given')
+
+        for root, dirs, files in os.walk(os.path.join(self.scan_dir, pn)):
+            for file in files:
+                if file.endswith('.pdf'):
+                    src = os.path.join(root, file)
+                    result = identify(src)
+                    print(f'Identified {pn} - {file} to be {result}')
+                    if result is not None:
+                        dnum = _re_doc_num(file)[0]
+                        dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
+                        copyfile(src, dest)
+
+    def get_illustrations(self, scan_dir=None):
+        """Automatically scan folder (scan_dir) for illustrations
+
+        Note:
+            In order for scan dir to work properly folders must be in the form
+            Part number
+                - Files
+                - Files
+                - Files
+            The same format that the DocumentCollector temp creator is in
+        """
+        if self.scan_dir is None and scan_dir is None:
+            raise FileNotFoundError('Scan directory is not given')
+        elif scan_dir is not None:
+            self.scan_dir = scan_dir
+        # Pandas dataframe uses numpy 64 floats wich automatically add a .0
+        pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
+        if self.filtered is None:
+            self.get_filtered()
+        pool = Pool(self.processes)
+        pool.map(self._multi_identify, pns)
+
+        self._used, self._count = [], 0
+        for idx in self.filtered.index:
+            self._rename(idx)
+
+    def _rename(self, idx):
+        """Function to renumber the illustrations in the folder"""
+
+        for file in os.listdir(self.save_dir):
+            pn = self.filtered.loc[idx, 'pn'].astype(str).replace('.0', '')
+            try:
+                ill_type = file.split("-")[1]
+                if file.split('-')[0] == pn and pn not in self._used:
+                    self._used.append(ill_type)
+                    self._count += 1
+                    src = os.path.join(self.save_dir, file)
+                    renamed = f'Ill.{self._count} {pn} {self.filtered.loc[idx, "desc"]} {ill_type}'
+                    # Convert to windows accepable name
+                    renamed = re.sub(r'[^a-zA-Z0-9()#.]+', ' ', renamed)
+                    dest = os.path.join(self.save_dir, renamed)
+                    os.rename(src, dest)
+            except IndexError:
+                continue
+
+    def update_ccl(self):
+        """Updates the word ccl"""
+        pass
+
+    def insert_illustration(self):
+        """Inserts a new illustration into the ccl, requires UI"""
+        pass
+
+    def delete_illustration(self):
+        """Delets an illustration from the ccl, requires UI"""
+        pass
 
 
 class DocumentCollector:
@@ -114,12 +183,19 @@ class DocumentCollector:
         self.processes = processes
         self.failed = []
         self.headless = headless
+        self.temp_dir = None
+
+    def create_temp_dir(self):
+        self.temp_dir = os.path.join(self.save_dir, 'temp')
+        if os.path.exists(self.temp_dir):
+            self.clear_temp()
+        os.makedirs(self.temp_dir)
 
     def get_filtered(self):
         self.filtered = Parser(self.ccl).filter()
 
     def multidownload(self, pn: str):
-        temp_path = os.path.join(self.save_dir, 'temp', pn)
+        temp_path = os.path.join(self.temp_dir, pn)
         try:
             print(f'{pn} is downloading')
             if not os.path.exists(temp_path):
@@ -135,9 +211,10 @@ class DocumentCollector:
             return pn
 
     def download(self):
-        if os.path.exists(os.path.join(self.save_dir, 'temp')):
-            rmtree(os.path.join(self.save_dir, 'temp'))
-        os.makedirs(os.path.join(self.save_dir, 'temp'))
+        if os.path.exists(self.temp_dir):
+            rmtree(self.temp_dir)
+        os.makedirs(self.temp_dir)
+
         if self.filtered is None:
             self.get_filtered()
         pns = self.filtered['pn'].astype(str)
@@ -146,28 +223,91 @@ class DocumentCollector:
         pool = Pool(self.processes)
         self.failed = list(pool.map(self.multidownload, pns))
 
+    def extract_all(self):
+        """Extracts alll the files into the main part folder removing any zip files"""
 
-def collect_documents(username, password, ccl_word, save_dir):
-    def format_name(pn, desc, fn):
+        # Regex check for vendor zip files
+        def vendor(string):
+            result = re.findall(r'VENDOR', string, re.IGNORECASE)
+            return True if result else False
+
+        # Extract all pdf
+        for root, dirs, files in os.walk(self.temp_dir):
+            for file in files:
+                if file.endswith('.zip'):
+                    with ZipFile(os.path.join(root, file)) as zip_file:
+                        zip_file.extractall(root)
+                    # Clean up
+                    os.remove(os.path.join(root, file))
+        # Rescan all documents to remove all sub folders and place into main
+        for part in os.listdir(self.temp_dir):
+            # Only go through directories
+            for sub_root, sub_dirs, sub_files in os.walk(os.path.join(self.temp_dir, part)):
+                # Scan through sub dirs only
+                for sub_dir in sub_dirs:
+                    for file in os.listdir(os.path.join(sub_root, sub_dir)):
+                        src = os.path.join(sub_root, sub_dir, file)
+                        dest = os.path.join(sub_root, file)
+                        # Special condition of vendor files, only extract the pdf
+                        # Vendor and archive files will remain in the folder
+                        if vendor(file):
+                            with ZipFile(src) as zip_file:
+                                for file_in_zip in zip_file.namelist():
+                                    if file_in_zip.endswith('.pdf'):
+                                        zip_file.extract(file_in_zip, sub_root)
+                    # Clean up
+                        copyfile(src, dest)
+                    rmtree(os.path.join(sub_root, sub_dir))
+
+    @staticmethod
+    def _format_name(pn, desc, fn):
         pn = pn.astype(str).replace('.0', '')
         fn = fn.astype(str).replace('.0', '')
         return pn, desc, fn
 
-    enovia = Enovia(username, password, headless=True)
-    filtered = Parser(ccl_word).filter()
-    path_bold = save_dir
+    def collect_documents(self, path=None):
+        if path is None:
+            path = self.save_dir
+        path_bold = path
+        for idx in self.filtered.index:
+            pn, desc, fn = self._format_name(self.filtered.loc[idx, "pn"],
+                                             self.filtered.loc[idx, "desc"],
+                                             self.filtered.loc[idx, "fn"])
+            folder_name = f'{pn} {desc} (#{fn})'
+            folder_name = re.sub(r"[^a-zA-Z0-9()#]+", ' ', folder_name)
+            temp_folder = os.path.join(self.temp_dir, pn)
 
-    for idx in filtered.index:
-        pn, desc, fn = format_name(filtered.loc[idx, "pn"], filtered.loc[idx, "desc"], filtered.loc[idx, "fn"])
-        folder_name = f'{pn} {desc} (#{fn})'
+            try:
+                if self.filtered.loc[idx, 'bold']:
+                    path_bold = os.path.join(path, folder_name)
+                    copytree(temp_folder, path_bold)
 
-        if filtered.loc[idx, 'bold'] == True:
-            path_bold = os.path.join(save_dir, folder_name)
+                elif not self.filtered.loc[idx, 'bold']:
+                    sub_path = os.path.join(path_bold, folder_name)
+                    copytree(temp_folder, sub_path)
+            except FileExistsError:
+                continue
 
-        elif filtered.loc[idx, 'bold'] == False:
-            sub_path = os.path.join(path_bold, folder_name)
+    def clear_temp(self):
+        if self.temp_dir is None:
+            raise ValueError('temp_dir is not set')
+        if not os.path.exists(self.temp_dir):
+            raise FileNotFoundError('Temp directory doesnt exist')
+        rmtree(self.temp_dir)
 
 
 if __name__ == '__main__':
-    documents = DocumentCollector('test', 'test', 'ccl.docx', os.getcwd())
-    documents.download()
+    import pandas as pd
+    import time
+
+    filtered = pd.read_csv('filter.csv', index_col=0)
+    ill = Illustration('ccl.docx', 'illustrations', 10)
+    ill.filtered = filtered
+    ill.scan_dir = 'temp'
+
+    start = time.time()
+
+    ill.get_illustrations()
+
+    end = time.time()
+    print(f'Took {end - start}s to finish')
