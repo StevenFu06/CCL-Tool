@@ -194,7 +194,7 @@ class DocumentCollector:
     def get_filtered(self):
         self.filtered = Parser(self.ccl).filter()
 
-    def multidownload(self, pn: str):
+    def _multidownload(self, pn: str):
         temp_path = os.path.join(self.temp_dir, pn)
         try:
             print(f'{pn} is downloading')
@@ -211,9 +211,11 @@ class DocumentCollector:
             return pn
 
     def download(self):
-        if os.path.exists(self.temp_dir):
+        try:
             rmtree(self.temp_dir)
-        os.makedirs(self.temp_dir)
+        except TypeError:
+            pass
+        self.create_temp_dir()
 
         if self.filtered is None:
             self.get_filtered()
@@ -221,7 +223,7 @@ class DocumentCollector:
         pns = [pn.replace('.0', '') for pn in pns]
 
         pool = Pool(self.processes)
-        self.failed = list(pool.map(self.multidownload, pns))
+        self.failed = [failed for failed in pool.map(self._multidownload, pns) if failed is not None]
 
     def extract_all(self):
         """Extracts alll the files into the main part folder removing any zip files"""
@@ -297,17 +299,10 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    import pandas as pd
-    import time
-
-    filtered = pd.read_csv('filter.csv', index_col=0)
-    ill = Illustration('ccl.docx', 'illustrations', 10)
-    ill.filtered = filtered
-    ill.scan_dir = 'temp'
-
-    start = time.time()
-
-    ill.get_illustrations()
-
-    end = time.time()
-    print(f'Took {end - start}s to finish')
+    test = Parser('ccl.docx')
+    print(test.filter())
+    # document = DocumentCollector('Steven.Fu', 'hipeople1S', 'ccl.docx', 'ccl documents', processes=4)
+    # document.download()
+    # print(document.failed)
+    # document.extract_all()
+    # document.collect_documents('collected')
