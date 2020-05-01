@@ -299,10 +299,9 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    test = Parser('ccl.docx')
-    test.filter().to_csv('filtered1.csv')
-    # document = DocumentCollector('Steven.Fu', 'hipeople1S', 'ccl.docx', 'ccl documents', processes=4)
-    # document.download()
-    # print(document.failed)
-    # document.extract_all()
-    # document.collect_documents('collected')
+    document = DocumentCollector('Steven.Fu', 'hipeople1S', 'ccl.docx', 'ccl documents', processes=4)
+    document.create_temp_dir()
+    document.download()
+    print(document.failed)
+    document.extract_all()
+    document.collect_documents('collected')
