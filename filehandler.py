@@ -5,7 +5,7 @@ from zipfile import ZipFile
 from shutil import copyfile, rmtree, copytree
 
 from enovia import Enovia
-from package import Parser, _re_doc_num
+from package import Parser, _re_doc_num, _re_pn
 
 from multiprocessing import Pool
 
@@ -95,26 +95,43 @@ class Illustration:
         self.save_dir = save_dir
         self.filtered = None
         self.scan_dir = None
+        self.ccl_dir = None
 
     def get_filtered(self):
         self.filtered = Parser(self.ccl).filter()
 
-    def _multi_identify(self, pn):
+    def _multi_identify_scan(self, pn):
         if self.scan_dir is None:
             raise FileNotFoundError('Scan directory is not given')
 
-        for root, dirs, files in os.walk(os.path.join(self.scan_dir, pn)):
-            for file in files:
-                if file.endswith('.pdf'):
-                    src = os.path.join(root, file)
-                    result = identify(src)
-                    print(f'Identified {pn} - {file} to be {result}')
-                    if result is not None:
-                        dnum = _re_doc_num(file)[0]
-                        dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
-                        copyfile(src, dest)
+        for file in os.listdir(os.path.join(self.scan_dir, pn)):
+            if file.endswith('.pdf'):
+                src = os.path.join(self.scan_dir, pn, file)
+                result = identify(src)
+                print(f'Identified {pn} - {file} to be {result}')
+                if result is not None:
+                    dnum = _re_doc_num(file)[0]
+                    dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
+                    copyfile(src, dest)
 
-    def get_illustrations(self, scan_dir=None):
+    def _multi_identify_ccl(self, pn: str):
+        if self.ccl_dir is None:
+            raise FileNotFoundError('Scan directory is not given')
+        for root, dirs, files in os.walk(self.ccl_dir):
+            for dir in dirs:
+                found_pn = _re_pn(dir)
+                if found_pn == int(pn):
+                    for file in os.listdir(os.path.join(root, dir)):
+                        if file.endswith('.pdf'):
+                            src = os.path.join(root, dir, file)
+                            result = identify(src)
+                            print(f'Identified {pn} - {file} to be {result}')
+                            if result is not None:
+                                dnum = _re_doc_num(file)[0]
+                                dest = os.path.join(self.ccl_dir, f'{pn}-{result}. {dnum}.pdf')
+                                copyfile(src, dest)
+
+    def get_illustrations(self, scan_dir=None, ccl_dir=None):
         """Automatically scan folder (scan_dir) for illustrations
 
         Note:
@@ -125,16 +142,22 @@ class Illustration:
                 - Files
             The same format that the DocumentCollector temp creator is in
         """
-        if self.scan_dir is None and scan_dir is None:
+        multiscan = self._multi_identify_ccl
+        if self.scan_dir is None and scan_dir is None and self.ccl_dir is None and ccl_dir is None:
             raise FileNotFoundError('Scan directory is not given')
         elif scan_dir is not None:
             self.scan_dir = scan_dir
-        # Pandas dataframe uses numpy 64 floats wich automatically add a .0
-        pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
+            multiscan = self._multi_identify_scan
+        elif ccl_dir is not None:
+            self.ccl_dir = ccl_dir
+            multiscan = self._multi_identify_ccl
+
         if self.filtered is None:
             self.get_filtered()
+        # Pandas dataframe uses numpy 64 floats wich automatically add a .0
+        pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
         pool = Pool(self.processes)
-        pool.map(self._multi_identify, pns)
+        pool.map(multiscan, pns)
 
         self._used, self._count = [], 0
         for idx in self.filtered.index:
@@ -210,20 +233,17 @@ class DocumentCollector:
             print(f'{pn} failed to download')
             return pn
 
-    def download(self):
-        try:
-            rmtree(self.temp_dir)
-        except TypeError:
-            pass
-        self.create_temp_dir()
-
-        if self.filtered is None:
-            self.get_filtered()
-        pns = self.filtered['pn'].astype(str)
-        pns = [pn.replace('.0', '') for pn in pns]
+    def download(self, pns):
+        """Download from enovia using multi download multiprocess"""
 
         pool = Pool(self.processes)
         self.failed = [failed for failed in pool.map(self._multidownload, pns) if failed is not None]
+        prev_failed_len = -1
+        # Rerun until self.failed length becomes constant or is empty
+        while self.failed and prev_failed_len != len(self.failed):
+            prev_failed_len = len(self.failed)
+            self.failed = [failed for failed in pool.map(self._multidownload, self.failed) if failed is not None]
+        return self.failed
 
     def extract_all(self):
         """Extracts alll the files into the main part folder removing any zip files"""
@@ -247,7 +267,9 @@ class DocumentCollector:
             for sub_root, sub_dirs, sub_files in os.walk(os.path.join(self.temp_dir, part)):
                 # Scan through sub dirs only
                 for sub_dir in sub_dirs:
-                    for file in os.listdir(os.path.join(sub_root, sub_dir)):
+                    files = (file for file in os.listdir(os.path.join(sub_root, sub_dir))
+                             if os.path.isfile(os.path.join(sub_root, sub_dir, file)))
+                    for file in files:
                         src = os.path.join(sub_root, sub_dir, file)
                         dest = os.path.join(sub_root, file)
                         # Special condition of vendor files, only extract the pdf
@@ -267,7 +289,11 @@ class DocumentCollector:
         fn = fn.astype(str).replace('.0', '')
         return pn, desc, fn
 
-    def collect_documents(self, path=None):
+    def structure(self, path=None):
+        """Turns temp structured into proper CCL strucutre
+
+        Param path: the save location of the ccl structured folder
+        """
         if path is None:
             path = self.save_dir
         path_bold = path
@@ -290,6 +316,70 @@ class DocumentCollector:
             except FileExistsError:
                 continue
 
+    @staticmethod
+    def _pn_exists(pn, dirs):
+        """Check if pn exists in files"""
+
+        for dir in dirs:
+            found = _re_pn(dir)
+            if found == int(pn):
+                return dir
+        return False
+
+    def _check_path_and_copy(self, pn, path, dest_folder):
+        """Checks if the path contains a folder with pn and copy contents to dest_folder"""
+
+        for root, dirs, files in os.walk(path):
+            dir_found = self._pn_exists(pn, dirs)
+            if dir_found is not False:
+                # Get Files only
+                files = (file for file in os.listdir(os.path.join(root, dir_found))
+                         if os.path.isfile(os.path.join(root, dir_found, file)))
+                for file in files:
+                    src = os.path.join(root, dir_found, file)
+                    dest = os.path.join(dest_folder, file)
+                    copyfile(src, dest)
+                return True
+        return False
+
+    def _check_paths(self, pn, paths, dest_folder):
+        for path in paths:
+            copied = self._check_path_and_copy(pn, path, dest_folder)
+            if copied:
+                return True
+        return False
+
+    def collect_documents(self, check_paths: list = None):
+        """Main function for this class, collect the documents for ccl
+
+        param check_paths: paths to check before downloading off Enovia, index 0 gets highest priority
+        """
+        try:
+            rmtree(self.temp_dir)
+        except TypeError:
+            pass
+        self.create_temp_dir()
+
+        if self.filtered is None:
+            self.get_filtered()
+        pns = self.filtered['pn'].astype(str)
+        pns = [pn.replace('.0', '') for pn in pns]
+
+        to_download = []
+        for pn in pns:
+            dest_folder = os.path.join(self.temp_dir, pn)
+            if not os.path.exists(dest_folder):
+                os.makedirs(dest_folder)
+            copied = self._check_paths(pn, check_paths, dest_folder)
+            if not copied:
+                to_download.append(pn)
+
+        self.download(to_download)
+        self.extract_all()
+        self.structure()
+        self.clear_temp()
+        print(f'{self.failed} have failed to download')
+
     def clear_temp(self):
         if self.temp_dir is None:
             raise ValueError('temp_dir is not set')
@@ -299,9 +389,7 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    document = DocumentCollector('Steven.Fu', 'hipeople1S', 'ccl.docx', 'ccl documents', processes=4)
-    document.create_temp_dir()
-    document.download()
-    print(document.failed)
-    document.extract_all()
-    document.collect_documents('collected')
+    import pandas as pd
+    documents = DocumentCollector('na', 'na', 'ccl.docx', 'ccl_stuff')
+    documents.filtered = pd.read_csv('filter.csv', index_col=0)
+    documents.collect_documents(['ccl documents'])
