@@ -17,6 +17,8 @@ from pdfminer.pdfpage import PDFPage
 import pytesseract as pt
 import pdf2image
 
+from docx.api import Document
+
 
 def pdf_to_text_miner(path):
     pdf_manager = PDFResourceManager()
@@ -91,6 +93,8 @@ class Illustration:
 
     def __init__(self, ccl, save_dir, processes=1):
         self.ccl = ccl
+        self.document = Document(ccl)
+        self.table = self.document.tables[0]
         self.processes = processes
         self.save_dir = save_dir
         self.filtered = None
@@ -182,17 +186,72 @@ class Illustration:
             except IndexError:
                 continue
 
-    def update_ccl(self):
+    def find_illustration(self, pn):
+        info = []
+        for file in os.listdir(self.save_dir):
+            if file.endswith('.pdf'):
+                ill_num = file.split(' ')[0]
+                file_pn = file.split(' ')[1]
+                dnum = _re_doc_num(file)
+                sch_assy = 'Assy.' if 'Assy.' in file.split(' ') else 'Sch.'
+                if pn == file_pn:
+                    info.append((ill_num, dnum[0], sch_assy))
+        return info
+
+    @staticmethod
+    def _refer_to_ill(illustration_data):
+        ill_num, dnum, ill_type = illustration_data
+        return f' {ill_num} {ill_type} {dnum};'
+
+    def _format_techincal(self, techincal_string):
+        results = re.findall(r'(?:\s*,|and)?\s*(?:Refer to)?\s*(?:Ill.|Ill)\s*(?:\d+.|\d+)\s*('
+                             r'?:Sch.|Assy.|Sch|Assy)\s*D\d+\s*(?:;|and)?',
+                             techincal_string, re.IGNORECASE)
+        for result in results:
+            techincal_string = techincal_string.replace(result, '')
+        return techincal_string
+
+    def update_ccl(self, ccl_save_loc):
         """Updates the word ccl"""
-        pass
 
-    def insert_illustration(self):
-        """Inserts a new illustration into the ccl, requires UI"""
-        pass
+        for row in self.table.rows:
+            pn = row.cells[0].text
+            ills = self.find_illustration(pn)
+            techincal_data = row.cells[4].text
+            if ills:
+                insert_string = 'Refer to'
+                for ill in ills:
+                    insert_string = insert_string + self._refer_to_ill(ill)
+                row.cells[4].text = insert_string + techincal_data
+        self.document.save(ccl_save_loc)
 
-    def delete_illustration(self):
-        """Delets an illustration from the ccl, requires UI"""
-        pass
+    def shift_up_ill(self, shift_from):
+        """Shifts illustrations up starting from and including shift_from
+
+        Will also update the CCL
+        """
+        for file in os.listdir(self.save_dir):
+            if file.endswith('.pdf'):
+                ill_num = int(re.findall(r'\d+', file.split(' ')[0])[0])
+                if ill_num >= shift_from:
+                    new_name = file.replace(file.split(' ')[0], f'Ill.{ill_num+1}')
+                    dest = os.path.join(self.save_dir, new_name)
+                    src = os.path.join(self.save_dir, file)
+                    os.rename(src, dest)
+
+    def shift_down_ill(self, shift_from):
+        """Shifts illustrations numbers down starting from and including shift_from
+
+        Will also update the CCL
+        """
+        for file in os.listdir(self.save_dir):
+            if file.endswith('.pdf'):
+                ill_num = int(re.findall(r'\d+', file.split(' ')[0])[0])
+                if ill_num >= shift_from:
+                    new_name = file.replace(file.split(' ')[0], f'Ill.{ill_num - 1}')
+                    dest = os.path.join(self.save_dir, new_name)
+                    src = os.path.join(self.save_dir, file)
+                    os.rename(src, dest)
 
 
 class DocumentCollector:
@@ -279,7 +338,7 @@ class DocumentCollector:
                                 for file_in_zip in zip_file.namelist():
                                     if file_in_zip.endswith('.pdf'):
                                         zip_file.extract(file_in_zip, sub_root)
-                    # Clean up
+                        # Clean up
                         copyfile(src, dest)
                     rmtree(os.path.join(sub_root, sub_dir))
 
@@ -389,7 +448,5 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    import pandas as pd
-    documents = DocumentCollector('na', 'na', 'ccl.docx', 'ccl_stuff')
-    documents.filtered = pd.read_csv('filter.csv', index_col=0)
-    documents.collect_documents(['ccl documents'])
+    illustration = Illustration('ccl.docx', 'Illustrations')
+    illustration.update_ccl('test.docx')

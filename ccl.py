@@ -33,6 +33,7 @@ class CCL:
 
         Rearrange(bom_old, bom_new, track)
         all_updated = track.combine_found()
+        print('----------------------------------------------------------------------------------------')
         for row in self.table.rows:
             if row.cells[0].text in all_updated['old_pn'].to_list():
                 update_info = all_updated.loc[all_updated['old_pn'] == row.cells[0].text]
@@ -44,6 +45,7 @@ class CCL:
                     font.color.rgb = RGBColor(255, 0, 0)
 
                 ## update pn ##
+                print(f'{row.cells[0].text} has been updated to {update_info["new_pn"].values[0]}')
                 row.cells[0].text = update_info['new_pn'].values[0]
 
                 ## update desc + fn ##
@@ -74,17 +76,9 @@ class CCL:
 
                 row.cells[3].text = to_pop
 
-    def save(self):
-        self.document.save('test.docx')
+    def save(self, save_loc):
+        self.document.save(save_loc)
 
 
-
-
-
-
-
-
-
-if __name__ == '__main__':
-
-    collect_documents('meyh', ',ey', 'ccl.docx', 'test')
+# if __name__ == '__main__':
+#     collect_documents('meyh', ',ey', 'ccl.docx', 'test')
