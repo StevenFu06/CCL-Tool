@@ -6,6 +6,8 @@ import os
 import pandas as pd
 import json
 
+import pickle
+
 
 ########################################################################################################################
 # Features / Functions
@@ -71,10 +73,15 @@ bugatti_rev_c = os.path.join('Demo', 'Update CCL', 'revc.csv')
 
 # Collect Documents
 """Move over to laptop for collect documents demo"""
+bugatti_rev_c_laptop = os.path.join('Demo', 'Document Collector', 'rev c bugatti.docx')
+ccl_document_save_location = os.path.join('Demo', 'Document Collector', 'ccl documents')
+password = pickle.load(open('password.pkl', 'rb'))
 
 ########################################################################################################################
 # Demo Code below
 ########################################################################################################################
 
-# bom_comparison(wombat_rev_g, wombat_tree_g, wombat_rev_n, wombat_tree_n)
-# update_ccl(bugatti_ccl, bugatti_rev_a, bugatti_rev_c, updated_ccl)
+if __name__ == '__main__':
+    # bom_comparison(wombat_rev_g, wombat_tree_g, wombat_rev_n, wombat_tree_n)
+    # update_ccl(bugatti_ccl, bugatti_rev_a, bugatti_rev_c, updated_ccl)
+    # collect_documents(bugatti_rev_c_laptop, ccl_document_save_location, [], 'Steven.Fu', password, 4)
