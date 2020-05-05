@@ -132,7 +132,7 @@ class Illustration:
                             print(f'Identified {pn} - {file} to be {result}')
                             if result is not None:
                                 dnum = _re_doc_num(file)[0]
-                                dest = os.path.join(self.ccl_dir, f'{pn}-{result}. {dnum}.pdf')
+                                dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
                                 copyfile(src, dest)
 
     def get_illustrations(self, scan_dir=None, ccl_dir=None):
