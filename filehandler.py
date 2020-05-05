@@ -93,8 +93,8 @@ class Illustration:
 
     def __init__(self, ccl, save_dir, processes=1):
         self.ccl = ccl
-        self.document = Document(ccl)
-        self.table = self.document.tables[0]
+        # self.document = Document(ccl)
+        # self.table = self.document.tables[0]
         self.processes = processes
         self.save_dir = save_dir
         self.filtered = None
@@ -186,44 +186,44 @@ class Illustration:
             except IndexError:
                 continue
 
-    def find_illustration(self, pn):
-        info = []
-        for file in os.listdir(self.save_dir):
-            if file.endswith('.pdf'):
-                ill_num = file.split(' ')[0]
-                file_pn = file.split(' ')[1]
-                dnum = _re_doc_num(file)
-                sch_assy = 'Assy.' if 'Assy.' in file.split(' ') else 'Sch.'
-                if pn == file_pn:
-                    info.append((ill_num, dnum[0], sch_assy))
-        return info
-
-    @staticmethod
-    def _refer_to_ill(illustration_data):
-        ill_num, dnum, ill_type = illustration_data
-        return f' {ill_num} {ill_type} {dnum};'
-
-    def _format_techincal(self, techincal_string):
-        results = re.findall(r'(?:\s*,|and)?\s*(?:Refer to)?\s*(?:Ill.|Ill)\s*(?:\d+.|\d+)\s*('
-                             r'?:Sch.|Assy.|Sch|Assy)\s*D\d+\s*(?:;|and)?',
-                             techincal_string, re.IGNORECASE)
-        for result in results:
-            techincal_string = techincal_string.replace(result, '')
-        return techincal_string
-
-    def update_ccl(self, ccl_save_loc):
-        """Updates the word ccl"""
-
-        for row in self.table.rows:
-            pn = row.cells[0].text
-            ills = self.find_illustration(pn)
-            techincal_data = row.cells[4].text
-            if ills:
-                insert_string = 'Refer to'
-                for ill in ills:
-                    insert_string = insert_string + self._refer_to_ill(ill)
-                row.cells[4].text = insert_string + techincal_data
-        self.document.save(ccl_save_loc)
+    # def find_illustration(self, pn):
+    #     info = []
+    #     for file in os.listdir(self.save_dir):
+    #         if file.endswith('.pdf'):
+    #             ill_num = file.split(' ')[0]
+    #             file_pn = file.split(' ')[1]
+    #             dnum = _re_doc_num(file)
+    #             sch_assy = 'Assy.' if 'Assy.' in file.split(' ') else 'Sch.'
+    #             if pn == file_pn:
+    #                 info.append((ill_num, dnum[0], sch_assy))
+    #     return info
+    #
+    # @staticmethod
+    # def _refer_to_ill(illustration_data):
+    #     ill_num, dnum, ill_type = illustration_data
+    #     return f' {ill_num} {ill_type} {dnum};'
+    #
+    # def _format_techincal(self, techincal_string):
+    #     results = re.findall(r'(?:\s*,|and)?\s*(?:Refer to)?\s*(?:Ill.|Ill)\s*(?:\d+.|\d+)\s*('
+    #                          r'?:Sch.|Assy.|Sch|Assy)\s*D\d+\s*(?:;|and)?',
+    #                          techincal_string, re.IGNORECASE)
+    #     for result in results:
+    #         techincal_string = techincal_string.replace(result, '')
+    #     return techincal_string
+    #
+    # def update_ccl(self, ccl_save_loc):
+    #     """Updates the word ccl"""
+    #
+    #     for row in self.table.rows:
+    #         pn = row.cells[0].text
+    #         ills = self.find_illustration(pn)
+    #         techincal_data = row.cells[4].text
+    #         if ills:
+    #             insert_string = 'Refer to'
+    #             for ill in ills:
+    #                 insert_string = insert_string + self._refer_to_ill(ill)
+    #             row.cells[4].text = insert_string + techincal_data
+    #     self.document.save(ccl_save_loc)
 
     def shift_up_ill(self, shift_from):
         """Shifts illustrations up starting from and including shift_from
@@ -448,5 +448,6 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    illustration = Illustration('ccl.docx', 'Illustrations')
-    illustration.update_ccl('test.docx')
+    ill = Illustration('ccl.docx', 'illustration', processes=4)
+    ill.ccl_dir = 'Annex B - Wombat Jorb CCL Documents'
+    ill.get_illustrations()
