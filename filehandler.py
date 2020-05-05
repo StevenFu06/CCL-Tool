@@ -397,6 +397,8 @@ class DocumentCollector:
                 for file in files:
                     src = os.path.join(root, dir_found, file)
                     dest = os.path.join(dest_folder, file)
+                    if not os.path.exists(dest_folder):
+                        os.makedirs(dest_folder)
                     copyfile(src, dest)
                 return True
         return False
@@ -421,14 +423,15 @@ class DocumentCollector:
 
         if self.filtered is None:
             self.get_filtered()
+        if check_paths is None:
+            check_paths = []
+
         pns = self.filtered['pn'].astype(str)
         pns = [pn.replace('.0', '') for pn in pns]
 
         to_download = []
         for pn in pns:
             dest_folder = os.path.join(self.temp_dir, pn)
-            if not os.path.exists(dest_folder):
-                os.makedirs(dest_folder)
             copied = self._check_paths(pn, check_paths, dest_folder)
             if not copied:
                 to_download.append(pn)
@@ -448,6 +451,5 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    ill = Illustration('ccl.docx', 'illustration', processes=4)
-    ill.ccl_dir = 'Annex B - Wombat Jorb CCL Documents'
-    ill.get_illustrations()
+    docs = DocumentCollector('Steven.Fu', 'hipeople1S', 'rev c bugatti.docx', 'ccl docs', headless=False)
+    docs.collect_documents()

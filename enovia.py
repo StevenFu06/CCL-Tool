@@ -170,7 +170,7 @@ class Enovia:
             'cmd': 'Page.setDownloadBehavior',
             'params': {
                 'behavior': 'allow',
-                'downloadPath': download_dir
+                'downloadPath': os.path.abspath(download_dir)  # Needs abs path or it fails to download
             }
         }
         self.browser.execute("send_command", params)
