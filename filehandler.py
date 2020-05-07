@@ -451,5 +451,5 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    docs = DocumentCollector('Steven.Fu', 'hipeople1S', 'rev c bugatti.docx', 'ccl docs', headless=False)
+    docs = DocumentCollector('Steven.Fu', 'password', 'rev c bugatti.docx', 'ccl docs', headless=False)
     docs.collect_documents()
