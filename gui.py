@@ -234,11 +234,67 @@ class Illustration(tk.Frame):
     def nav_buttons(self):
         button_prev = tk.Button(self, text='Previous', width=10, height=1, command=self.prev_cmd)
         button_prev.pack(side='left', anchor='s', padx=(110, 0), pady=5)
-        button_start = tk.Button(self, text='Start Process', width=10, height=1)
+        button_start = tk.Button(self, text='Start Process', width=10, height=1, command=self.start_cmd)
         button_start.pack(side='right', anchor='s', padx=(0, 110), pady=5)
 
     def prev_cmd(self):
         self.controller.show_frame(CCLDocuments)
+
+    def start_cmd(self):
+        process = ProcessMonitor()
+        process.mainloop()
+
+
+class ProcessMonitor(tk.Tk):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.width = 700
+        self.height = 500
+        self.minsize(height=self.height, width=self.width)
+        self.title('CCL Tool')
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.configure(background='white')
+
+        self.progress_frame()
+        self.consol_out()
+        self.buttons()
+
+    def progress_frame(self):
+        progress_bar_frame = tk.Frame(self, bg='white')
+        progress_bar_frame.pack(expand=True, fill='x')
+
+        step_label = tk.Label(progress_bar_frame, text='Currently on step X', bg='white')
+        step_label.pack(anchor='w', padx=5)
+
+        progress_bar = ttk.Progressbar(progress_bar_frame)
+        progress_bar.pack(fill='x', expand=True, padx=5)
+        progress_bar.start(interval=1000)
+
+    def consol_out(self):
+        text_frame = tk.Frame(self, bg='white')
+        text_frame.pack(expand=True, fill='both')
+
+        textbox = tk.Text(text_frame, relief='solid')
+        textbox.pack(fill='both', padx=(5, 0), pady=5, expand=True, side='left')
+        textbox.insert(tk.END, 'The current status message goes here\n')
+        textbox.insert(tk.END, f'The current window size is {self.winfo_width()}x{self.winfo_height()}')
+        textbox.config(state='disabled')
+
+        scrollbar_y = tk.Scrollbar(text_frame)
+        scrollbar_y.pack(fill='both', padx=(0, 5), pady=5, side='left')
+
+        scrollbar_y.config(command=textbox.yview)
+        textbox.config(yscrollcommand=scrollbar_y.set)
+
+    def buttons(self):
+        button_frame = tk.Frame(self, bg='white')
+        button_frame.pack(fill='both')
+
+        abort = tk.Button(button_frame, text='Abort', command=self.destroy)
+        abort.pack(padx=5, pady=5)
 
 
 if __name__ == '__main__':
