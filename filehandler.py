@@ -158,7 +158,7 @@ class Illustration:
 
         if self.filtered is None:
             self.get_filtered()
-        # Pandas dataframe uses numpy 64 floats wich automatically add a .0
+        # Pandas dataframe uses numpy 64 floats which automatically add a .0
         pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
         pool = Pool(self.processes)
         pool.map(multiscan, pns)
