@@ -104,6 +104,10 @@ class Tracker:
                               columns=self.COLUMNS)
         self.find_only = pd.concat([self.find_only, append], ignore_index=True)
 
+    def not_found_to_df(self):
+        df = pd.DataFrame(data=self.not_found, columns=['idx', 'pn'])
+        return df
+
     def isused(self, part):
         return True if part in self.used else False
 
@@ -111,7 +115,11 @@ class Tracker:
         self.not_found = set()
 
     def combine_found(self):
-        return pd.concat([self.full_match, self.partial_match, self.find_only])
+        self.full_match.insert(4, 'match_type', 'full')
+        self.partial_match.insert(4, 'match_type', 'partial')
+        self.find_only.insert(4, 'match_type', 'fn_only')
+        combined = pd.concat([self.full_match, self.partial_match, self.find_only])
+        return combined.sort_values(by=['old_idx'])
 
 
 def ismatch(bom_old, part_old, bom_new, part_new, threshold_full=50, threshold_partial=80):
@@ -237,13 +245,16 @@ def Rearrange(bom_old, bom_new, tracker):
         for part in tracker.not_found:
 
             if part[1] in bom_new.bom['Name'].values:
-                parent_new = bom_new.immediate_parent(
-                    bom_new.bom.loc[bom_new.bom['Name'] == part[1]].index[0]
-                )
-                if parent_new[1] in bom_old.bom['Name'].values:
-                    parent_old_index = bom_new.bom.loc[bom_new.bom['Name'] == part[1]].index[0]
-                    print(f'{part[0]} {part[1]} has been rearranged to be under {parent_old_index} {parent_new[1]}')
-                    rearrange(bom_old.parent, f'{part[0]} {part[1]}', f'{parent_old_index} {parent_new[1]}')
+                try:
+                    parent_new = bom_new.immediate_parent(
+                        bom_new.bom.loc[bom_new.bom['Name'] == part[1]].index[0]
+                    )
+                    if parent_new[1] in bom_old.bom['Name'].values:
+                        parent_old_index = bom_new.bom.loc[bom_new.bom['Name'] == part[1]].index[0]
+                        print(f'{part[0]} {part[1]} has been rearranged to be under {parent_old_index} {parent_new[1]}')
+                        rearrange(bom_old.parent, f'{part[0]} {part[1]}', f'{parent_old_index} {parent_new[1]}')
+                except TypeError:
+                    continue
 
 
 if __name__ == '__main__':
@@ -261,4 +272,4 @@ if __name__ == '__main__':
 
     tracker = Tracker()
     Rearrange(bom_old, bom_new, tracker)
-    print(tracker.not_found)
+    print(tracker.not_found_to_df())
