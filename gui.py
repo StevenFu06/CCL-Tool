@@ -14,6 +14,7 @@ class Root(tk.Tk):
         super().__init__(*args, **kwargs)
 
         self.ccl = CCL()
+        self.ccl_saveas = None
 
         self.page = -1
         self.minsize(self.HEIGHT, self.WIDTH)
@@ -99,7 +100,9 @@ class Root(tk.Tk):
                                               variable=self.check_ill)
         check_illustrations.pack(anchor='w')
 
-        button_insert_illustrations = ttk.Button(center_check_button, text='Insert / Delete Illustrations')
+        button_insert_illustrations = ttk.Button(center_check_button,
+                                                 text='Insert / Delete Illustrations',
+                                                 command=InsertDelIll)
         button_insert_illustrations.pack(anchor='center')
         center_check_button.tkraise()
 
@@ -108,6 +111,7 @@ class Root(tk.Tk):
         self.button_prev.pack(side='left', padx=(110, 0), pady=5)
         self.button_next = ttk.Button(self, text='Next', width=10, command=self.next_frame)
         self.button_next.pack(side='right', padx=(0, 110), pady=5)
+
 
 class BomInput(tk.Frame):
     def __init__(self, parent, controller):
@@ -141,16 +145,23 @@ class BomInput(tk.Frame):
         self.label_filename_old.configure(text=filename.name)
         self.label_filename_old.pack()
 
+        self.ccl.avl_bom_path = filename.name
+        self.ccl.avl_bom = pd.read_csv(filename.name)
+
     def file_dialog_new(self):
         filename = filedialog.askopenfile(initialdir='/', title='Select the New AVL BOM')
         self.label_filename_new.configure(text=filename.name)
         self.label_filename_new.pack()
+
+        self.ccl.avl_bom_updated_path = filename.name
+        self.ccl.avl_bom_updated = pd.read_csv(filename.name)
 
 
 class CCLInput(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.ccl = controller.ccl
 
         info = tk.Button(self, text='?', width=1, height=1, borderwidth=0)
         info.pack(anchor='ne', side='right', padx=2)
@@ -167,16 +178,32 @@ class CCLInput(tk.Frame):
         ccl.pack(anchor='center', pady=5, padx=5)
         self.label_filename.pack(anchor='center')
 
+        ccl_save = ttk.Button(centered_frame, text='Save as new CCL', command=self.file_dialog_save)
+        self.label_filename_save = tk.Label(centered_frame, text='')
+
+        ccl_save.pack(anchor='center', pady=5, padx=5)
+        self.label_filename_save.pack(anchor='center')
+
     def file_dialog(self):
         filename = filedialog.askopenfile(initialdir='/', title='Select CCL')
         self.label_filename.configure(text=filename.name)
         self.label_filename.pack()
+
+        self.ccl.ccl_docx = filename.name
+
+    def file_dialog_save(self):
+        filename = filedialog.asksaveasfilename(initialdir='/', title='Save As')
+        self.label_filename_save.configure(text=filename)
+        self.label_filename_save.pack()
+
+        self.controller.ccl_saveas = filename
 
 
 class CCLDocuments(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.ccl = controller.ccl
 
         info = tk.Button(self, text='?', width=1, height=1, borderwidth=0)
         info.pack(anchor='ne', side='right', padx=2)
@@ -194,15 +221,18 @@ class CCLDocuments(tk.Frame):
         self.label_filename.pack(anchor='center')
 
     def file_dialog(self):
-        filename = filedialog.askopenfile(initialdir='/', title='Select Directory')
-        self.label_filename.configure(text=filename.name)
+        filename = filedialog.askdirectory(initialdir='/', title='Select Directory')
+        self.label_filename.configure(text=filename)
         self.label_filename.pack()
+
+        self.ccl.path_ccl_data = filename
 
 
 class Illustration(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.ccl = controller.ccl
 
         info = tk.Button(self, text='?', width=1, height=1, borderwidth=0)
         info.pack(anchor='ne', side='right', padx=2)
@@ -220,9 +250,117 @@ class Illustration(tk.Frame):
         self.label_filename.pack(anchor='center')
 
     def file_dialog(self):
-        filename = filedialog.askopenfile(initialdir='/', title='Select Directory')
-        self.label_filename.configure(text=filename.name)
+        filename = filedialog.askdirectory(initialdir='/', title='Select Directory')
+        self.label_filename.configure(text=filename)
         self.label_filename.pack()
+
+        self.ccl.path_illustration = filename
+
+
+class InsertDelIll(tk.Toplevel):
+    HEIGHT = 400
+    WIDTH = 200
+    TITLE = 'Illustration Tool'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.ccl = CCL()
+        self.ill_path = None
+        self.save_ccl = None
+
+        self.minsize(self.HEIGHT, self.WIDTH)
+        self.title(self.TITLE)
+
+        self.illnum()
+        self.illpath()
+        self.illdir()
+        self.browseccl()
+        self.saveccl()
+        self.run_buttons()
+
+    def illnum(self):
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        label = ttk.Label(centerframe, text='Enter illustration number: Ill.')
+        label.pack(side='left')
+
+        num = ttk.Entry(centerframe, width=3)
+        num.pack(side='left')
+        self.ill_num = num.get()
+
+    def illpath(self):
+        def browse(self):
+            filename = filedialog.askopenfile(initialdir='/', title='Select Illustration')
+            label.configure(text=filename.name)
+            self.ill_path = filename.name
+
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        button = ttk.Button(centerframe, text='Browse Illustration', command=lambda: browse(self))
+        button.pack()
+        label = ttk.Label(centerframe, text='Select illustration to be inserted / deleted')
+        label.pack()
+
+    def illdir(self):
+        def browse(self):
+            filename = filedialog.askopenfile(initialdir='/', title='Select Directory')
+            label.configure(text=filename.name)
+            self.ccl.path_illustration = filename.name
+
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        button = ttk.Button(centerframe, text='Browse Directory', command=lambda: browse(self))
+        button.pack()
+        label = ttk.Label(centerframe, text='Select Illustration Directory Location')
+        label.pack()
+
+    def browseccl(self):
+        def browse(self):
+            filename = filedialog.askdirectory(initialdir='/', title='Select CCL')
+            label.configure(text=filename.name)
+            self.ccl.ccl_docx = filename.name
+
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        button = ttk.Button(centerframe, text='Browse CCL', command=lambda: browse(self))
+        button.pack()
+        label = ttk.Label(centerframe, text='Select CCL Location')
+        label.pack()
+
+    def saveccl(self):
+        def browse(self):
+            filename = filedialog.asksaveasfilename(initialdir='/', title='Save CCL')
+            label.configure(text=filename)
+            self.save_ccl = filename
+
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        button = ttk.Button(centerframe, text='Save CCL', command=lambda: browse(self))
+        button.pack()
+        label = ttk.Label(centerframe, text='Save CCL Location')
+        label.pack()
+
+    def run_buttons(self):
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True, pady=5)
+
+        insert = ttk.Button(centerframe, text='Insert', command=self.insertcmd)
+        insert.pack(side='left')
+
+        delete = ttk.Button(centerframe, text='Delete', command=self.delcmd)
+        delete.pack(side='right')
+
+    def insertcmd(self):
+        self.ccl.insert_illustration(self.ill_num, self.ill_path, self.save_ccl)
+
+    def delcmd(self):
+        self.ccl.delete_illustration(self.ill_num, self.ill_path, self.save_ccl)
 
 
 if __name__ == '__main__':

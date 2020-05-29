@@ -29,6 +29,10 @@ class CCL:
         self.username = None
         self.password = None
 
+########################################################################################################################
+# Bom comparison
+########################################################################################################################
+
     def set_bom_compare(self, avl_bom_old, avl_bom_new):
         self.avl_bom_path = avl_bom_old
         self.avl_bom_updated_path = avl_bom_new
@@ -36,11 +40,12 @@ class CCL:
         self.avl_bom = pd.read_csv(avl_bom_old)
         self.avl_bom_updated = pd.read_csv(avl_bom_new)
 
-########################################################################################################################
-# Bom comparison
-########################################################################################################################
+    def avl_path_to_df(self):
+        self.avl_bom = pd.read_csv(self.avl_bom_path)
+        self.avl_bom_updated = pd.read_csv(self.avl_bom_updated_path)
 
     def bom_compare(self):
+        # ISSUE where bom_compare outputs nothing, needs to be converted to df or something
         if self.avl_bom is None or self.avl_bom_updated is None:
             raise ValueError('Missing required fields, ccl, avl_new or avl_old')
 
