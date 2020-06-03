@@ -289,13 +289,5 @@ def BuildPackage(save_path: os.path, word_doc: os.path, avl_bom: os.path):
 
 
 if __name__ == '__main__':
-    old = Parent('reva.csv')
-    new = Parent('Fake Bom\\new.csv')
-
-    old.build_tree()
-    with open('treea.json', 'w') as write:
-        json.dump(old.tree, write, indent=4)
-
-    # new.build_tree()
-    # with open('Fake Bom\\tree_new.json', 'w') as write:
-    #     json.dump(new.tree, write, indent=4)
+    ccl = Parser('ccl.docx')
+    print(ccl.filter())

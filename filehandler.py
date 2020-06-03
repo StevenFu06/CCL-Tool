@@ -7,7 +7,8 @@ from shutil import copyfile, rmtree, copytree
 from enovia import Enovia
 from package import Parser, _re_doc_num, _re_pn
 
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import as_completed
 
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
@@ -16,8 +17,6 @@ from pdfminer.pdfpage import PDFPage
 
 import pytesseract as pt
 import pdf2image
-
-from docx.api import Document
 
 
 def pdf_to_text_miner(path):
@@ -107,20 +106,23 @@ class Illustration:
     def _multi_identify_scan(self, pn):
         if self.scan_dir is None:
             raise FileNotFoundError('Scan directory is not given')
-
+        output_message = []
         for file in os.listdir(os.path.join(self.scan_dir, pn)):
             if file.endswith('.pdf'):
                 src = os.path.join(self.scan_dir, pn, file)
                 result = identify(src)
+                output_message.append(f'Identified {pn} - {file} to be {result}')
                 print(f'Identified {pn} - {file} to be {result}')
                 if result is not None:
                     dnum = _re_doc_num(file)[0]
                     dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
                     copyfile(src, dest)
+        return output_message
 
     def _multi_identify_ccl(self, pn: str):
         if self.ccl_dir is None:
             raise FileNotFoundError('Scan directory is not given')
+        output_message = []
         for root, dirs, files in os.walk(self.ccl_dir):
             for dir in dirs:
                 found_pn = _re_pn(dir)
@@ -129,11 +131,13 @@ class Illustration:
                         if file.endswith('.pdf'):
                             src = os.path.join(root, dir, file)
                             result = identify(src)
+                            output_message.append(f'Identified {pn} - {file} to be {result}')
                             print(f'Identified {pn} - {file} to be {result}')
                             if result is not None:
                                 dnum = _re_doc_num(file)[0]
                                 dest = os.path.join(self.save_dir, f'{pn}-{result}. {dnum}.pdf')
                                 copyfile(src, dest)
+        return output_message
 
     def get_illustrations(self, scan_dir=None, ccl_dir=None):
         """Automatically scan folder (scan_dir) for illustrations
@@ -160,8 +164,17 @@ class Illustration:
             self.get_filtered()
         # Pandas dataframe uses numpy 64 floats which automatically add a .0
         pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
-        pool = Pool(self.processes)
-        pool.map(multiscan, pns)
+        with ProcessPoolExecutor(max_workers=self.processes) as executor:
+            message = [
+                executor.submit(multiscan, pn)
+                for pn in pns
+            ]
+            for future in as_completed(message):
+                messages = future.result()
+                for out in messages:
+                    print(out)
+        # pool = Pool(self.processes)
+        # pool.map(multiscan, pns)
 
         self._used, self._count = [], 0
         for idx in self.filtered.index:
@@ -185,45 +198,6 @@ class Illustration:
                     os.rename(src, dest)
             except IndexError:
                 continue
-
-    # def find_illustration(self, pn):
-    #     info = []
-    #     for file in os.listdir(self.save_dir):
-    #         if file.endswith('.pdf'):
-    #             ill_num = file.split(' ')[0]
-    #             file_pn = file.split(' ')[1]
-    #             dnum = _re_doc_num(file)
-    #             sch_assy = 'Assy.' if 'Assy.' in file.split(' ') else 'Sch.'
-    #             if pn == file_pn:
-    #                 info.append((ill_num, dnum[0], sch_assy))
-    #     return info
-    #
-    # @staticmethod
-    # def _refer_to_ill(illustration_data):
-    #     ill_num, dnum, ill_type = illustration_data
-    #     return f' {ill_num} {ill_type} {dnum};'
-    #
-    # def _format_techincal(self, techincal_string):
-    #     results = re.findall(r'(?:\s*,|and)?\s*(?:Refer to)?\s*(?:Ill.|Ill)\s*(?:\d+.|\d+)\s*('
-    #                          r'?:Sch.|Assy.|Sch|Assy)\s*D\d+\s*(?:;|and)?',
-    #                          techincal_string, re.IGNORECASE)
-    #     for result in results:
-    #         techincal_string = techincal_string.replace(result, '')
-    #     return techincal_string
-    #
-    # def update_ccl(self, ccl_save_loc):
-    #     """Updates the word ccl"""
-    #
-    #     for row in self.table.rows:
-    #         pn = row.cells[0].text
-    #         ills = self.find_illustration(pn)
-    #         techincal_data = row.cells[4].text
-    #         if ills:
-    #             insert_string = 'Refer to'
-    #             for ill in ills:
-    #                 insert_string = insert_string + self._refer_to_ill(ill)
-    #             row.cells[4].text = insert_string + techincal_data
-    #     self.document.save(ccl_save_loc)
 
     def shift_up_ill(self, shift_from):
         """Shifts illustrations up starting from and including shift_from
@@ -295,8 +269,10 @@ class DocumentCollector:
     def download(self, pns):
         """Download from enovia using multi download multiprocess"""
 
-        pool = Pool(self.processes)
-        self.failed = [failed for failed in pool.map(self._multidownload, pns) if failed is not None]
+        with ThreadPoolExecutor(self.processes) as executor:
+            self.failed = [failed for failed in executor.map(self._multidownload, pns) if failed is not None]
+        # pool = Pool(self.processes)
+        # self.failed = [failed for failed in pool.map(self._multidownload, pns) if failed is not None]
         prev_failed_len = -1
         # Rerun until self.failed length becomes constant or is empty
         while self.failed and prev_failed_len != len(self.failed):
