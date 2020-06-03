@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import *
+from pandastable import Table
 
 from ccl import *
 
+import threading
 
 class Root(tk.Tk):
-    HEIGHT = 400
-    WIDTH = 200
     TITLE = 'CCL Tool'
 
     def __init__(self, *args, **kwargs):
@@ -15,9 +16,10 @@ class Root(tk.Tk):
 
         self.ccl = CCL()
         self.ccl_saveas = None
+        self.compare_saveas = None
+        self.processes = {}
 
         self.page = -1
-        self.minsize(self.HEIGHT, self.WIDTH)
         self.title(self.TITLE)
 
         self.container = tk.Frame(self)
@@ -34,6 +36,9 @@ class Root(tk.Tk):
 
         self.main_options()
         self.nav_buttons()
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
 
     def next_frame(self):
         if not self.frames_active:
@@ -56,10 +61,10 @@ class Root(tk.Tk):
             self.page -= 1
 
         if self.page >= len(self.frames_active)-1:
-            self.button_next.configure(text='Start')
+            self.button_next.configure(text='Start', command=lambda: Run(self))
 
     def prev_frame(self):
-        self.button_next.configure(text='Next')
+        self.button_next.configure(text='Next', command=self.next_frame)
         if self.page > 0:
             self.page -= 1
             self.frames_active[self.page].tkraise()
@@ -104,6 +109,12 @@ class Root(tk.Tk):
                                                  text='Insert / Delete Illustrations',
                                                  command=InsertDelIll)
         button_insert_illustrations.pack(anchor='center')
+
+        button_check_filtered = ttk.Button(center_check_button,
+                                           text='CCL Format Checker',
+                                           command=FilterCheck)
+        button_check_filtered.pack()
+
         center_check_button.tkraise()
 
     def nav_buttons(self):
@@ -140,6 +151,12 @@ class BomInput(tk.Frame):
         bom_new.pack(anchor='center', pady=5, padx=5)
         self.label_filename_new.pack(anchor='center')
 
+        bom_save = ttk.Button(centered_frame, text='Save As Directory Bom Compare (Optional)',
+                              command=self.file_dialog_save)
+        bom_save.pack(anchor='center')
+        self.label_filename_save = ttk.Label(centered_frame, text='')
+        self.label_filename_save.pack(anchor='center')
+
     def file_dialog_old(self):
         filename = filedialog.askopenfile(initialdir='/', title='Select the Old AVL BOM')
         self.label_filename_old.configure(text=filename.name)
@@ -155,6 +172,13 @@ class BomInput(tk.Frame):
 
         self.ccl.avl_bom_updated_path = filename.name
         self.ccl.avl_bom_updated = pd.read_csv(filename.name)
+
+    def file_dialog_save(self):
+        filename = filedialog.askdirectory(initialdir='/', title='Save As')
+        self.label_filename_save.configure(text=filename)
+        self.label_filename_save.pack()
+
+        self.controller.compare_saveas = filename
 
 
 class CCLInput(tk.Frame):
@@ -209,10 +233,12 @@ class CCLDocuments(tk.Frame):
         info.pack(anchor='ne', side='right', padx=2)
 
         self.doc_input()
+        self.path_checks()
+        self.enovia_user()
 
     def doc_input(self):
-        centered_frame = tk.Frame(self, width=5, height=5)
-        centered_frame.pack(padx=5, pady=5, expand=True)
+        centered_frame = tk.Frame(self)
+        centered_frame.pack(expand=True)
 
         docs = ttk.Button(centered_frame, text='Browse for CCL Documents Save Location', command=self.file_dialog)
         self.label_filename = tk.Label(centered_frame, text='')
@@ -226,6 +252,75 @@ class CCLDocuments(tk.Frame):
         self.label_filename.pack()
 
         self.ccl.path_ccl_data = filename
+
+    def path_checks(self):
+        centerframe = tk.Frame(self)
+        centerframe.pack(expand=True)
+
+        self.path_listbox = Listbox(centerframe, height=5)
+        self.path_listbox.pack(side='left', fill='both')
+
+        scroll = Scrollbar(centerframe, orient='vertical', command=self.path_listbox.yview)
+        scroll.pack(side='left', fill='y')
+
+        self.path_listbox.configure(yscrollcommand=scroll.set)
+
+        addpath = ttk.Button(centerframe, text='Add Path', command=self.add_path)
+        addpath.pack()
+
+        delpath = ttk.Button(centerframe, text='Delete Path', command=self.del_path)
+        delpath.pack()
+
+        moveup = ttk.Button(centerframe, text='Move Up', command=self.move_up)
+        moveup.pack()
+
+        movedown = ttk.Button(centerframe, text='Move Down', command=self.move_down)
+        movedown.pack()
+
+    def add_path(self):
+        filename = filedialog.askdirectory(initialdir='/', title='Select Directory')
+        self.path_listbox.insert(END, filename)
+        self.set_check_paths()
+
+    def del_path(self):
+        self.path_listbox.delete(self.path_listbox.curselection())
+        self.set_check_paths()
+
+    def move_up(self):
+        selected = self.path_listbox.curselection()[0]
+        text = self.path_listbox.get(selected)
+        self.path_listbox.delete(selected)
+        self.path_listbox.insert(selected-1, text)
+        self.path_listbox.select_set(selected-1)
+        self.set_check_paths()
+
+    def move_down(self):
+        selected = self.path_listbox.curselection()[0]
+        text = self.path_listbox.get(selected)
+        self.path_listbox.delete(selected)
+        self.path_listbox.insert(selected+1, text)
+        self.path_listbox.select_set(selected+1)
+        self.set_check_paths()
+
+    def set_check_paths(self):
+        self.ccl.path_checks = [self.path_listbox.get(idx) for idx in range(self.path_listbox.size())]
+
+    def enovia_user(self):
+        centerframe_user = tk.Frame(self)
+        centerframe_user.pack(expand=True)
+
+        user_label = ttk.Label(centerframe_user, text='Enter Enovia Username')
+        user_label.pack(side='left')
+        user = ttk.Entry(centerframe_user)
+        user.pack(side='left')
+
+        centerframe_pass = tk.Frame(self)
+        centerframe_pass.pack(expand=True, pady=2)
+
+        password_label = ttk.Label(centerframe_pass, text='Enter Enovia Password')
+        password_label.pack(side='left')
+        password = ttk.Entry(centerframe_pass, show='*')
+        password.pack(side='left')
 
 
 class Illustration(tk.Frame):
@@ -278,6 +373,9 @@ class InsertDelIll(tk.Toplevel):
         self.browseccl()
         self.saveccl()
         self.run_buttons()
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
 
     def illnum(self):
         centerframe = tk.Frame(self)
@@ -361,6 +459,128 @@ class InsertDelIll(tk.Toplevel):
 
     def delcmd(self):
         self.ccl.delete_illustration(self.ill_num, self.ill_path, self.save_ccl)
+
+
+class FilterCheck(tk.Toplevel):
+    def __init__(self, *args, **kwargs):
+        self.minsize(300, 300)
+        super().__init__(*args, **kwargs)
+        self.ccl_loc = None
+        self.check_button()
+
+    def check_button(self):
+        button = ttk.Button(self, text='Browse for CCL', command=self.browse)
+        button.pack()
+        self.label = ttk.Label(self, text='')
+        self.label.pack()
+
+    def browse(self):
+        filename = filedialog.askopenfile(initialdir='/', title='Select CCL')
+        self.label.configure(text=filename.name)
+        self.ccl_loc = filename.name
+        self.filtered = Parser(self.ccl_loc).filter()
+        self.display_df()
+
+    def display_df(self):
+        frame = Frame(self)
+        frame.pack(fill=BOTH, expand=True)
+        self.dfdisplay = Table(frame, dataframe=self.filtered)
+        self.dfdisplay.show()
+
+class Run(tk.Toplevel):
+    def __init__(self, controller, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.controller = controller
+        self.ccl = controller.ccl
+
+        self.prompt()
+        self.controls()
+
+        sys.stdout = TextRedirector(self.console, 'stdout')
+        sys.stderr = TextRedirector(self.console, 'stderr')
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
+
+    def controls(self):
+        framecrtl = Frame(self)
+        framecrtl.pack()
+
+        run = ttk.Button(framecrtl, text='Run', command=self.start_threading)
+        run.pack(side='left')
+
+        abort = ttk.Button(framecrtl, text='Abort', command=self.controller.destroy)
+        abort.pack(side='right')
+
+    def prompt(self):
+        promptframe = Frame(self)
+        promptframe.pack(expand=True, fill=BOTH, padx=5)
+
+        self.progressbar = ttk.Progressbar(promptframe, mode='indeterminate')
+        self.progressbar.pack(fill='x', expand=True, pady=5)
+
+        self.console = Text(promptframe, wrap='word')
+        self.console.pack(side='left', expand=True, fill=BOTH)
+
+        scroll = Scrollbar(promptframe, orient='vertical', command=self.console.yview)
+        scroll.pack(side='right', expand=True, fill='y')
+        self.console.configure(yscrollcommand=scroll.set)
+
+    def run(self):
+        if self.controller.bom_compare.get():
+            if self.controller.compare_saveas is None:
+                raise ValueError('Missing BOM Comparison Save Location')
+
+            print('Starting BOM Compare')
+            self.ccl.save_compare(self.controller.compare_saveas)
+            print('BOM Compare finished')
+
+        if self.controller.ccl_update.get():
+            if self.controller.ccl_saveas is None:
+                raise ValueError('Missing CCL Input')
+            else:
+                print('Starting to update the CCL')
+                self.ccl.update_ccl(self.controller.ccl_saveas)
+                print('CCL Has been updated and saved')
+
+        if self.controller.col_docs.get():
+            print('Collecting Documents')
+            self.ccl.collect_documents()
+            print('Documents have been successfully collected')
+
+        if self.controller.check_ill.get():
+            if self.controller.ccl_saveas is None:
+                raise ValueError('Missing CCL Input')
+            print('Starting to Collect Illustrations')
+            self.ccl.collect_illustrations()
+            self.ccl.insert_illustration_data(self.controller.ccl_saveas)
+            print('Illustrations have been collected and CCL has been updated')
+
+        print('FINISHED!')
+
+    def start_threading(self):
+        self.submit_thread = threading.Thread(target=self.run)
+        self.submit_thread.daemon = True
+        self.submit_thread.start()
+        self.progressbar.start()
+        self.after(20, self.check_thread)
+
+    def check_thread(self):
+        if self.submit_thread.is_alive():
+            self.after(20, self.check_thread)
+        else:
+            self.progressbar.stop()
+
+
+class TextRedirector(object):
+    def __init__(self, widget, tag="stdout"):
+        self.widget = widget
+        self.tag = tag
+
+    def write(self, str):
+        self.widget.configure(state="normal")
+        self.widget.insert("end", str, (self.tag,))
+        self.widget.configure(state="disabled")
 
 
 if __name__ == '__main__':

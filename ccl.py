@@ -67,6 +67,15 @@ class CCL:
         bom_updated = Bom(pd.read_csv(self.avl_bom_updated_path), tree_updated)
         return tree, bom, tree_updated, bom_updated
 
+    def save_compare(self, save_dir):
+        tracker, tracker_reversed = self.bom_compare()
+        path = os.path.join(save_dir, 'bom comparison')
+        if not os.path.exists(path):
+            os.makedirs(path)
+        tracker.not_found_to_df().to_csv(os.path.join(path, 'removed.csv'))
+        tracker.combine_found().to_csv(os.path.join(path, 'changed.csv'))
+        tracker_reversed.not_found_to_df().to_csv(os.path.join(path, 'added.csv'))
+
 ########################################################################################################################
 # CCL Updating
 ########################################################################################################################
@@ -74,7 +83,7 @@ class CCL:
     def update_ccl(self, save_path, ccl_docx=None):
         if ccl_docx is not None:
             self.ccl_docx = ccl_docx
-        elif self.ccl_docx.docx is None:
+        elif self.ccl_docx is None:
             raise ValueError('CCL is not given')
 
         tracker = self.bom_compare()[0]
@@ -361,7 +370,5 @@ if __name__ == '__main__':
     import pandas as pd
     ccl = CCL()
     ccl.ccl_docx = 'ccl.docx'
-    # ccl.set_bom_compare('wombat revg.csv', 'wombat revn.csv')
-    # ccl.update_ccl('test.docx')
-    ccl.path_illustration = 'Annex A - Illustrations'
-    ccl.insert_illustration_data('test.docx')
+    ccl.set_bom_compare('reva.csv', 'revc.csv')
+    ccl.save_compare(os.getcwd())
