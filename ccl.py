@@ -6,6 +6,9 @@ from package import Parent, _re_doc_num, _re_pn
 from compare import Rearrange, Bom, Tracker
 from filehandler import *
 
+import pandas as pd
+from docx.api import Document
+
 class CCL:
     def __init__(self):
         # Files
@@ -155,7 +158,7 @@ class CCL:
 # Specification Documents Gathering
 ########################################################################################################################
 
-    def collect_documents(self, processes=1, headless=True):
+    def collect_documents(self, processes=1, headless=False):
         if self.ccl_docx is None:
             raise ValueError('CCL document is not given')
         if self.username is None or self.password is None:

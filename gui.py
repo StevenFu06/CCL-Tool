@@ -3,9 +3,11 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import *
 from pandastable import Table
+import pandas as pd
 
 from ccl import *
 
+from multiprocessing import freeze_support
 import threading
 
 class Root(tk.Tk):
@@ -311,16 +313,23 @@ class CCLDocuments(tk.Frame):
 
         user_label = ttk.Label(centerframe_user, text='Enter Enovia Username')
         user_label.pack(side='left')
-        user = ttk.Entry(centerframe_user)
-        user.pack(side='left')
+        self.user = ttk.Entry(centerframe_user)
+        self.user.pack(side='left')
 
         centerframe_pass = tk.Frame(self)
         centerframe_pass.pack(expand=True, pady=2)
 
         password_label = ttk.Label(centerframe_pass, text='Enter Enovia Password')
         password_label.pack(side='left')
-        password = ttk.Entry(centerframe_pass, show='*')
-        password.pack(side='left')
+        self.password = ttk.Entry(centerframe_pass, show='*')
+        self.password.pack(side='left')
+
+        login = ttk.Button(self, text='Login', command=self.login)
+        login.pack()
+
+    def login(self):
+        self.ccl.username = self.user.get()
+        self.ccl.password = self.password.get()
 
 
 class Illustration(tk.Frame):
@@ -463,7 +472,6 @@ class InsertDelIll(tk.Toplevel):
 
 class FilterCheck(tk.Toplevel):
     def __init__(self, *args, **kwargs):
-        self.minsize(300, 300)
         super().__init__(*args, **kwargs)
         self.ccl_loc = None
         self.check_button()
@@ -584,6 +592,7 @@ class TextRedirector(object):
 
 
 if __name__ == '__main__':
+    freeze_support()
     tool = Root()
     # tool.style = ttk.Style()
     # tool.style.theme_use('classic')
