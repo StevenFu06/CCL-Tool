@@ -17,8 +17,6 @@ from pdfminer.pdfpage import PDFPage
 import pytesseract as pt
 import pdf2image
 
-from docx.api import Document
-
 
 def pdf_to_text_miner(path):
     pdf_manager = PDFResourceManager()

@@ -1,14 +1,8 @@
-from docx.api import Document
 from docx.shared import RGBColor
 from docx.enum.text import WD_COLOR_INDEX
 from docx.shared import Pt
 
-import pandas as pd
-import json
-import os
-
-from enovia import Enovia
-from package import Parser, Parent, _re_doc_num, _re_pn
+from package import Parent, _re_doc_num, _re_pn
 from compare import Rearrange, Bom, Tracker
 from filehandler import *
 
