@@ -2,13 +2,20 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import *
+from tkinter import messagebox
+
 from pandastable import Table
 import pandas as pd
 
 from ccl import *
+from compare import *
+from package import Parent
+from StyleFrame import StyleFrame, Styler
 
 from multiprocessing import freeze_support
 import threading
+import os
+
 
 class Root(tk.Tk):
     TITLE = 'CCL Tool'
@@ -23,6 +30,7 @@ class Root(tk.Tk):
 
         self.page = -1
         self.title(self.TITLE)
+        self.settings()
 
         self.container = tk.Frame(self)
         self.container.pack(pady=(1, 0), expand=True, fill='both')
@@ -42,6 +50,10 @@ class Root(tk.Tk):
         self.update()
         self.minsize(self.winfo_width(), self.winfo_height())
 
+    def settings(self):
+        settings = tk.Button(self, text='i', width=1, height=1, borderwidth=0, command=lambda: Settings(self))
+        settings.pack(anchor='ne', side='right', padx=2)
+
     def next_frame(self):
         if not self.frames_active:
             if self.bom_compare.get() or self.ccl_update.get():
@@ -56,13 +68,13 @@ class Root(tk.Tk):
             if self.check_ill.get():
                 self.frames_active.append(self.frames_standby[Illustration])
 
-        if self.page < len(self.frames_active)-1:
+        if self.page < len(self.frames_active) - 1:
             self.page += 1
             self.frames_active[self.page].tkraise()
         else:
             self.page -= 1
 
-        if self.page >= len(self.frames_active)-1:
+        if self.page >= len(self.frames_active) - 1:
             self.button_next.configure(text='Start', command=lambda: Run(self))
 
     def prev_frame(self):
@@ -117,6 +129,11 @@ class Root(tk.Tk):
                                            command=FilterCheck)
         button_check_filtered.pack()
 
+        button_rohs_compare = ttk.Button(center_check_button,
+                                         text='RoHS BOM Comparison',
+                                         command=lambda: ROHSCompare(self))
+        button_rohs_compare.pack()
+
         center_check_button.tkraise()
 
     def nav_buttons(self):
@@ -124,6 +141,52 @@ class Root(tk.Tk):
         self.button_prev.pack(side='left', padx=(110, 0), pady=5)
         self.button_next = ttk.Button(self, text='Next', width=10, command=self.next_frame)
         self.button_next.pack(side='right', padx=(0, 110), pady=5)
+
+
+class Settings(tk.Toplevel):
+    def __init__(self, controller, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.controller = controller
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
+        self.setprocess()
+        self.done()
+
+    def setprocess(self):
+        processframe = tk.Frame(self)
+        processframe.pack()
+
+        cpu_usage_label = ttk.Label(processframe, text='Enter desired CPU usage (0 for default): ')
+        cpu_usage_label.pack(side='left')
+
+        default = IntVar()
+        default.set(0)
+        self.cpu_usage = Entry(processframe, width=3, text=default)
+        self.cpu_usage.pack(side='left')
+
+        percent = ttk.Label(processframe, text='%')
+        percent.pack(side='left')
+
+    def done(self):
+        button = ttk.Button(self, text='Done', command=self.done_cmd)
+        button.pack()
+
+    def done_cmd(self):
+        cores = os.cpu_count()
+        cpu_usage = int(self.cpu_usage.get())
+        if cpu_usage < 0 or cpu_usage > 100:
+            self.invalid_input()
+        elif cpu_usage == 0:
+            self.controller.ccl.processes = 1
+        else:
+            self.controller.ccl.processes = round(cpu_usage / 100 * cores)
+            print(self.controller.ccl.processes)
+
+    @staticmethod
+    def invalid_input():
+        messagebox.showerror('Error', 'Invalid Input')
 
 
 class BomInput(tk.Frame):
@@ -292,20 +355,23 @@ class CCLDocuments(tk.Frame):
         selected = self.path_listbox.curselection()[0]
         text = self.path_listbox.get(selected)
         self.path_listbox.delete(selected)
-        self.path_listbox.insert(selected-1, text)
-        self.path_listbox.select_set(selected-1)
+        self.path_listbox.insert(selected - 1, text)
+        self.path_listbox.select_set(selected - 1)
         self.set_check_paths()
 
     def move_down(self):
         selected = self.path_listbox.curselection()[0]
         text = self.path_listbox.get(selected)
         self.path_listbox.delete(selected)
-        self.path_listbox.insert(selected+1, text)
-        self.path_listbox.select_set(selected+1)
+        self.path_listbox.insert(selected + 1, text)
+        self.path_listbox.select_set(selected + 1)
         self.set_check_paths()
 
     def set_check_paths(self):
-        self.ccl.path_checks = [self.path_listbox.get(idx) for idx in range(self.path_listbox.size())]
+        if self.path_listbox.size() > 0:
+            self.ccl.path_checks = [self.path_listbox.get(idx) for idx in range(self.path_listbox.size())]
+        else:
+            self.ccl.path_checks = []
 
     def enovia_user(self):
         centerframe_user = tk.Frame(self)
@@ -324,12 +390,18 @@ class CCLDocuments(tk.Frame):
         self.password = ttk.Entry(centerframe_pass, show='*')
         self.password.pack(side='left')
 
-        login = ttk.Button(self, text='Login', command=self.login)
-        login.pack()
+        center_login = tk.Frame(self)
+        center_login.pack(expand='True')
+        login = ttk.Button(center_login, text='Login', command=self.login)
+        login.pack(side='left')
+        self.check = Label(center_login, text='')
+        self.check.pack(side='left')
 
     def login(self):
         self.ccl.username = self.user.get()
         self.ccl.password = self.password.get()
+        if len(self.user.get()) != 0 and len(self.password.get()) != 0:
+            self.check.config(text=u'\u2713')
 
 
 class Illustration(tk.Frame):
@@ -495,6 +567,7 @@ class FilterCheck(tk.Toplevel):
         self.dfdisplay = Table(frame, dataframe=self.filtered)
         self.dfdisplay.show()
 
+
 class Run(tk.Toplevel):
     def __init__(self, controller, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -525,13 +598,13 @@ class Run(tk.Toplevel):
         promptframe.pack(expand=True, fill=BOTH, padx=5)
 
         self.progressbar = ttk.Progressbar(promptframe, mode='indeterminate')
-        self.progressbar.pack(fill='x', expand=True, pady=5)
+        self.progressbar.pack(fill='x', pady=5)
 
         self.console = Text(promptframe, wrap='word')
         self.console.pack(side='left', expand=True, fill=BOTH)
 
         scroll = Scrollbar(promptframe, orient='vertical', command=self.console.yview)
-        scroll.pack(side='right', expand=True, fill='y')
+        scroll.pack(side='right', fill='y')
         self.console.configure(yscrollcommand=scroll.set)
 
     def run(self):
@@ -589,6 +662,116 @@ class TextRedirector(object):
         self.widget.configure(state="normal")
         self.widget.insert("end", str, (self.tag,))
         self.widget.configure(state="disabled")
+
+
+class ROHSCompare(tk.Toplevel):
+    def __init__(self, controller, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.controller = controller
+        self.a_avl = None
+        self.b_avl = None
+
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
+        self.input()
+        self.output()
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
+
+    def input(self):
+        frame_a = Frame(self)
+        frame_a.pack(expand=True, fill='both')
+        button_a = ttk.Button(frame_a, text='Browse for BOM A', width=17, command=self.fileinput_a)
+        button_a.pack(side='left')
+        self.label_a = tk.Label(frame_a, text='', bg='white', width=20)
+        self.label_a.pack(side='right', expand=True, fill='x')
+
+        frame_b = Frame(self)
+        frame_b.pack(expand=True, fill='both')
+        button_b = ttk.Button(frame_b, text='Browse for BOM B', width=17, command=self.fileinput_b)
+        button_b.pack(side='left')
+        self.label_b = tk.Label(frame_b, text='', bg='white')
+        self.label_b.pack(side='right', expand=True, fill='x')
+
+    def fileinput_a(self):
+        file = filedialog.askopenfile(initialdir='/', title='Browse for BOM A')
+        self.label_a.config(text=file.name)
+        self.a_avl = pd.read_csv(file)
+
+    def fileinput_b(self):
+        file = filedialog.askopenfile(initialdir='/', title='Browse for BOM B')
+        self.label_b.config(text=file.name)
+        self.b_avl = pd.read_csv(file)
+
+    def output(self):
+        frame_save = Frame(self)
+        frame_save.pack()
+
+        save_a = ttk.Button(frame_save,
+                            text='Generate Exclusive to BOM A',
+                            command=lambda: self.start_threading(self.a_avl, self.b_avl))
+        save_a.pack(side='left')
+
+        save_b = ttk.Button(frame_save,
+                            text='Generate Exclusive to BOM B',
+                            command=lambda: self.start_threading(self.b_avl, self.a_avl))
+        save_b.pack(side='right')
+
+    def compare(self, a_avl, b_avl):
+        a_bom = Bom(a_avl, Parent(a_avl).build_tree())
+        b_bom = Bom(b_avl, Parent(b_avl).build_tree())
+        a_only = [int(idx) for idx, pn in (a_bom - b_bom)]
+
+        sf = StyleFrame(a_avl)
+        style = Styler(bg_color='yellow',
+                       border_type=None,
+                       shrink_to_fit=False,
+                       wrap_text=False,
+                       font='Calibri',
+                       font_size=11)
+        style_default = Styler(border_type=None,
+                               fill_pattern_type=None,
+                               shrink_to_fit=False,
+                               wrap_text=False,
+                               font='Calibri',
+                               font_size=11)
+
+        for idx in a_avl.index:
+            sf.apply_style_by_indexes(sf.index[idx], styler_obj=style_default)
+
+        for idx in a_only:
+            sf.apply_style_by_indexes(sf.index[idx], styler_obj=style)
+        self.save_as(sf)
+
+    @staticmethod
+    def save_as(styleframe):
+        file = filedialog.asksaveasfilename(initialdir='/',
+                                            title='Save As',
+                                            filetypes=(('Excel', '.xlsx'),),
+                                            defaultextension='.xlsx')
+        styleframe.to_excel(file).save()
+
+    def show_progressbar(self):
+        popup = tk.Toplevel(self)
+        self.progressbar = ttk.Progressbar(popup, mode='indeterminate')
+        self.progressbar.pack(expand=True, fill='x')
+
+    def start_threading(self, a_avl, b_avl):
+        self.show_progressbar()
+        self.submit_thread = threading.Thread(target=lambda: self.compare(a_avl, b_avl))
+        self.submit_thread.daemon = True
+        self.submit_thread.start()
+        self.progressbar.start()
+        self.after(20, self.check_thread)
+
+    def check_thread(self):
+        if self.submit_thread.is_alive():
+            self.after(20, self.check_thread)
+        else:
+            self.progressbar.stop()
 
 
 if __name__ == '__main__':
