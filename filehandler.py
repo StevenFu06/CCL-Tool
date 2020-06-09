@@ -277,7 +277,8 @@ class DocumentCollector:
         # Rerun until self.failed length becomes constant or is empty
         while self.failed and prev_failed_len != len(self.failed):
             prev_failed_len = len(self.failed)
-            self.failed = [failed for failed in pool.map(self._multidownload, self.failed) if failed is not None]
+            with ThreadPoolExecutor(self.processes) as executor:
+                self.failed = [failed for failed in executor.map(self._multidownload, pns) if failed is not None]
         return self.failed
 
     def extract_all(self):
@@ -427,5 +428,5 @@ class DocumentCollector:
 
 
 if __name__ == '__main__':
-    docs = DocumentCollector('Steven.Fu', 'password', 'rev c bugatti.docx', 'ccl docs', headless=False)
-    docs.collect_documents()
+    import importlib_metadata
+    print(importlib_metadata.version("jsonschema"))

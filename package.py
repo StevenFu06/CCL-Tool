@@ -165,10 +165,22 @@ class Parent:
         tree: a multi level dictionary
     """
     def __init__(self, avl_bom):
-        self.bom = pd.read_csv(avl_bom)
+        self.avl_bom = avl_bom
+        self.set_bom()
         self.lowest = self.bom['Level'].max()
         self.flat = {}
         self.tree = {}
+
+    def set_bom(self):
+        """Sets self.bom depending if given a dataframe or path"""
+
+        try:
+            self.bom = pd.read_csv(self.avl_bom)
+        except ValueError:
+            if isinstance(self.avl_bom, pd.DataFrame):
+                self.bom = self.avl_bom
+            else:
+                raise ValueError('Invalid AVL Bom input, needs to be path or dataframe')
 
     def build_flat(self):
         """Builds a flat dictionary with parent + child as keys

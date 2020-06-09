@@ -57,7 +57,8 @@ class Enovia:
         # Sets browser & options
         if self.headless:
             self.chrome_options.add_argument('--headless')
-        self.browser = webdriver.Chrome(options=self.chrome_options)
+            self.chrome_options.binary_location = 'Chrome\\GoogleChromePortable.exe'
+        self.browser = webdriver.Chrome('Chrome\\chromedriver.exe', options=self.chrome_options)
         # Login
         self.browser.get(self.ENOVIA_URL)
         self.browser.find_element_by_name('login_name').send_keys(self.username)

@@ -25,6 +25,8 @@ class CCL:
         # Enovia
         self.username = None
         self.password = None
+        # Parallel Computing
+        self.processes = 1
 
 ########################################################################################################################
 # Bom comparison
@@ -158,7 +160,7 @@ class CCL:
 # Specification Documents Gathering
 ########################################################################################################################
 
-    def collect_documents(self, processes=1, headless=False):
+    def collect_documents(self, headless=True):
         if self.ccl_docx is None:
             raise ValueError('CCL document is not given')
         if self.username is None or self.password is None:
@@ -170,7 +172,7 @@ class CCL:
                                       password=self.password,
                                       ccl=self.ccl_docx,
                                       save_dir=self.path_ccl_data,
-                                      processes=processes,
+                                      processes=self.processes,
                                       headless=headless)
         collector.collect_documents(check_paths=self.path_checks)
 
@@ -178,14 +180,14 @@ class CCL:
 # Illustration gathering and CCL updating
 ########################################################################################################################
 
-    def collect_illustrations(self, processes=1):
+    def collect_illustrations(self):
         if self.ccl_docx is None:
             raise ValueError('CCL document is not given')
         if self.path_illustration is None:
             raise ValueError('Illustration save path not given')
         illustration = Illustration(ccl=self.ccl_docx,
                                     save_dir=self.path_illustration,
-                                    processes=processes)
+                                    processes=self.processes)
         illustration.get_illustrations(ccl_dir=self.path_ccl_data)
 
     def insert_illustration_data(self, save_path):
