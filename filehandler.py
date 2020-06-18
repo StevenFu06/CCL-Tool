@@ -6,6 +6,7 @@ from shutil import copyfile, rmtree, copytree
 
 from enovia import Enovia
 from package import Parser, _re_doc_num, _re_pn
+import progressbar
 
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from concurrent.futures import as_completed
@@ -17,6 +18,8 @@ from pdfminer.pdfpage import PDFPage
 
 import pytesseract as pt
 import pdf2image
+
+from selenium.common.exceptions import SessionNotCreatedException
 
 
 def pdf_to_text_miner(path):
@@ -164,6 +167,8 @@ class Illustration:
             self.get_filtered()
         # Pandas dataframe uses numpy 64 floats wich automatically add a .0
         pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]
+
+        increment = 1/len(pns)
         with ProcessPoolExecutor(max_workers=self.processes) as executor:
             message = [
                 executor.submit(multiscan, pn)
@@ -172,6 +177,7 @@ class Illustration:
             for future in as_completed(message):
                 messages = future.result()
                 for out in messages:
+                    progressbar.add_current(increment)
                     print(out)
         # pool = Pool(self.processes)
         # pool.map(multiscan, pns)
@@ -240,6 +246,7 @@ class DocumentCollector:
         self.failed = []
         self.headless = headless
         self.temp_dir = None
+        self.progress_val = 0
 
     def create_temp_dir(self):
         self.temp_dir = os.path.join(self.save_dir, 'temp')
@@ -252,6 +259,7 @@ class DocumentCollector:
 
     def _multidownload(self, pn: str):
         temp_path = os.path.join(self.temp_dir, pn)
+        progressbar.add_current(self.progress_val)
         try:
             print(f'{pn} is downloading')
             if not os.path.exists(temp_path):
@@ -262,18 +270,22 @@ class DocumentCollector:
                 enovia.download_specification_files(temp_path)
             print(f'{pn} has downloaded sucessfully')
             return None
-        except:
-            print(f'{pn} failed to download')
+        except SessionNotCreatedException as e:
+            raise e
+        except Exception as e:
+            print(f'{pn} failed to download due to {e}')
             return pn
 
     def download(self, pns):
         """Download from enovia using multi download multiprocess"""
 
+        self.progress_val = 1/len(pns)
         with ThreadPoolExecutor(self.processes) as executor:
             self.failed = [failed for failed in executor.map(self._multidownload, pns) if failed is not None]
         # pool = Pool(self.processes)
         # self.failed = [failed for failed in pool.map(self._multidownload, pns) if failed is not None]
         prev_failed_len = -1
+        self.progress_val = 0
         # Rerun until self.failed length becomes constant or is empty
         while self.failed and prev_failed_len != len(self.failed):
             prev_failed_len = len(self.failed)
@@ -289,16 +301,33 @@ class DocumentCollector:
             result = re.findall(r'VENDOR', string, re.IGNORECASE)
             return True if result else False
 
+        # For Progress bar increments
+        def progress_increment(temp_dir):
+            increment = 0
+            for root, dirs, files in os.walk(self.temp_dir):
+                for file in files:
+                    if file.endswith('.zip'):
+                        increment += 1
+            increment += len(os.listdir(temp_dir))
+            return 1/increment
+        increment = progress_increment(self.temp_dir)
+
         # Extract all pdf
         for root, dirs, files in os.walk(self.temp_dir):
             for file in files:
                 if file.endswith('.zip'):
+                    ## Progress bar ##
+                    progressbar.add_current(increment)
+                    ## Progress bar ##
                     with ZipFile(os.path.join(root, file)) as zip_file:
                         zip_file.extractall(root)
                     # Clean up
                     os.remove(os.path.join(root, file))
         # Rescan all documents to remove all sub folders and place into main
         for part in os.listdir(self.temp_dir):
+            ## Progress bar ##
+            progressbar.add_current(increment)
+            ## Progress bar ##
             # Only go through directories
             for sub_root, sub_dirs, sub_files in os.walk(os.path.join(self.temp_dir, part)):
                 # Scan through sub dirs only
@@ -413,9 +442,13 @@ class DocumentCollector:
             if not copied:
                 to_download.append(pn)
 
+        print('Beginning Download')
         self.download(to_download)
+        print('Extracting all Zip files')
         self.extract_all()
+        print('Structuring Temporary Dire ctory')
         self.structure()
+        print('Cleaning up')
         self.clear_temp()
         print(f'{self.failed} have failed to download')
 

@@ -9,6 +9,7 @@ from filehandler import *
 import pandas as pd
 from docx.api import Document
 
+
 class CCL:
     def __init__(self):
         # Files

@@ -6,13 +6,16 @@ from tkinter import messagebox
 
 from pandastable import Table
 import pandas as pd
+from StyleFrame import StyleFrame, Styler
 
 from ccl import *
 from compare import *
 from package import Parent
-from StyleFrame import StyleFrame, Styler
+import progressbar
 
 from multiprocessing import freeze_support
+import datetime as dt
+import time
 import threading
 import os
 
@@ -182,7 +185,6 @@ class Settings(tk.Toplevel):
             self.controller.ccl.processes = 1
         else:
             self.controller.ccl.processes = round(cpu_usage / 100 * cores)
-            print(self.controller.ccl.processes)
 
     @staticmethod
     def invalid_input():
@@ -574,6 +576,7 @@ class Run(tk.Toplevel):
         self.controller = controller
         self.ccl = controller.ccl
 
+        self.total_progress()
         self.prompt()
         self.controls()
 
@@ -597,8 +600,11 @@ class Run(tk.Toplevel):
         promptframe = Frame(self)
         promptframe.pack(expand=True, fill=BOTH, padx=5)
 
-        self.progressbar = ttk.Progressbar(promptframe, mode='indeterminate')
-        self.progressbar.pack(fill='x', pady=5)
+        self.progressbar = ttk.Progressbar(promptframe, mode='determinate', maximum=progressbar.total)
+        self.progressbar.pack(fill='x', pady=(5, 0))
+
+        self.progress_label = ttk.Label(promptframe, text='Press Run to begin')
+        self.progress_label.pack(anchor='w', pady=(0, 5))
 
         self.console = Text(promptframe, wrap='word')
         self.console.pack(side='left', expand=True, fill=BOTH)
@@ -614,6 +620,7 @@ class Run(tk.Toplevel):
 
             print('Starting BOM Compare')
             self.ccl.save_compare(self.controller.compare_saveas)
+            progressbar.add_current(1)
             print('BOM Compare finished')
 
         if self.controller.ccl_update.get():
@@ -623,11 +630,13 @@ class Run(tk.Toplevel):
                 print('Starting to update the CCL')
                 self.ccl.update_ccl(self.controller.ccl_saveas)
                 print('CCL Has been updated and saved')
+                progressbar.add_current(1)
 
         if self.controller.col_docs.get():
             print('Collecting Documents')
             self.ccl.collect_documents()
             print('Documents have been successfully collected')
+            # Progressbar progress will be updated in the filehandler module
 
         if self.controller.check_ill.get():
             if self.controller.ccl_saveas is None:
@@ -636,22 +645,47 @@ class Run(tk.Toplevel):
             self.ccl.collect_illustrations()
             self.ccl.insert_illustration_data(self.controller.ccl_saveas)
             print('Illustrations have been collected and CCL has been updated')
-
+            # Progressbar progress will be updated in the CCL module
+        self.progressbar['value'] = progressbar.total
+        self.progress_label.config(text='Done')
         print('FINISHED!')
 
+    def total_progress(self):
+        progressbar.reset()
+        if self.controller.bom_compare.get():
+            progressbar.add_total(1)
+        if self.controller.ccl_update.get():
+            progressbar.add_total(1)
+        if self.controller.col_docs.get():
+            progressbar.add_total(2)
+        if self.controller.check_ill.get():
+            progressbar.add_total(1)
+
     def start_threading(self):
+        self.progress_label.config(text='Estimating Time Reamining')
         self.submit_thread = threading.Thread(target=self.run)
+        self.start_time = time.time()
         self.submit_thread.daemon = True
         self.submit_thread.start()
-        self.progressbar.start()
-        self.after(20, self.check_thread)
+        self.after(1000, self.check_thread)
 
     def check_thread(self):
         if self.submit_thread.is_alive():
-            self.after(20, self.check_thread)
-        else:
-            self.progressbar.stop()
+            self.time_remaining()
+            self.after(1000, self.check_thread)
 
+    def time_remaining(self):
+        elapsed_time = time.time() - self.start_time
+        self.progressbar['value'] = progressbar.current
+        time_remaining = round((1 - progressbar.current) * elapsed_time)
+        if time_remaining < 60:
+            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
+        elif 3600 > time_remaining > 60:
+            time_remaining = round(time_remaining/60)
+            self.progress_label.config(text=f'Estimated TIme Remaining: {time_remaining} minutes')
+        elif time_remaining > 3600:
+            time_remaining = dt.timedelta(seconds=time_remaining)
+            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining}')
 
 class TextRedirector(object):
     def __init__(self, widget, tag="stdout"):
@@ -721,9 +755,11 @@ class ROHSCompare(tk.Toplevel):
         save_b.pack(side='right')
 
     def compare(self, a_avl, b_avl):
-        a_bom = Bom(a_avl, Parent(a_avl).build_tree())
-        b_bom = Bom(b_avl, Parent(b_avl).build_tree())
-        a_only = [int(idx) for idx, pn in (a_bom - b_bom)]
+        a_pns, b_pns = set(a_avl['Name']), set(b_avl['Name'])
+        exclusive = {pn for pn in a_pns if pn not in b_pns}
+        df_exclusive = pd.DataFrame()
+        for pn in exclusive:
+            df_exclusive = pd.concat([a_avl.loc[a_avl['Name'] == pn], df_exclusive])
 
         sf = StyleFrame(a_avl)
         style = Styler(bg_color='yellow',
@@ -742,7 +778,7 @@ class ROHSCompare(tk.Toplevel):
         for idx in a_avl.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style_default)
 
-        for idx in a_only:
+        for idx in df_exclusive.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style)
         self.save_as(sf)
 
@@ -778,5 +814,5 @@ if __name__ == '__main__':
     freeze_support()
     tool = Root()
     # tool.style = ttk.Style()
-    # tool.style.theme_use('classic')
+    # tool.style.theme_use('vista')
     tool.mainloop()

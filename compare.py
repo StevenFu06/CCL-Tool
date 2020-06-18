@@ -5,6 +5,8 @@ from fuzzywuzzy import fuzz
 
 from copy import deepcopy
 
+import progressbar
+
 class Bom:
 
     def __init__(self, avl_bom, parent):
