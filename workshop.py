@@ -346,11 +346,9 @@ class DocumentCollector(tk.Frame):
         self.enoviaframe = tk.Frame(self, background=self.master['background'])
         self.enoviaframe.pack(expand=False, fill='x', pady=5)
         self.user = ModernEntry(self.enoviaframe, text='Enter Enovia Username')
-        self.user.label.config(foreground='#666666')
         self.user.label.bind("<Button-1>", self.clear_user)
         self.user.pack(expand=True, fill='both', side='left', padx=(0, 2))
         self.password = ModernEntry(self.enoviaframe, text='Enter Enovia Password')
-        self.password.label.config(foreground='#666666')
         self.password.label.bind("<Button-1>", self.clear_password)
         self.password.pack(expand=True, fill='both', side='left', padx=(0, 2))
         self.login = ModernButton(self.enoviaframe, text='Login', width=9, command=self.start_thread)
@@ -442,7 +440,7 @@ class DocumentCollector(tk.Frame):
             self.root.docs_ccl = self.root.ccl_update_loc
 
     def enoviacheck(self):
-        with Enovia(self.user.get(), self.password.get(), headless=self.root.headless) as enovia:
+        with Enovia(self.user.get(), self.password.get(), headless=self.root.headless.get()) as enovia:
             pass
 
     def start_thread(self):
