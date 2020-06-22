@@ -8,6 +8,8 @@ from filehandler import *
 
 import pandas as pd
 from docx.api import Document
+import shutil
+
 
 class CCL:
     def __init__(self):
@@ -66,14 +68,40 @@ class CCL:
         bom_updated = Bom(pd.read_csv(self.avl_bom_updated_path), tree_updated)
         return tree, bom, tree_updated, bom_updated
 
-    def save_compare(self, save_dir):
+    def save_compare(self, save_name):
         tracker, tracker_reversed = self.bom_compare()
-        path = os.path.join(save_dir, 'bom comparison')
+        path = os.path.join(os.getcwd(), 'bom compare temp')
         if not os.path.exists(path):
             os.makedirs(path)
-        tracker.not_found_to_df().to_csv(os.path.join(path, 'removed.csv'))
-        tracker.combine_found().to_csv(os.path.join(path, 'changed.csv'))
-        tracker_reversed.not_found_to_df().to_csv(os.path.join(path, 'added.csv'))
+
+        df_updated = tracker.combine_found().reset_index()
+        changed = {'old index': [], 'old pn': [], 'old description': [],
+                   'new index': [], 'new pn': [], 'new description': []}
+        for idx in df_updated.index:
+            changed['old index'].append(df_updated.loc[idx, 'old_idx'])
+            changed['old pn'].append(self.avl_bom.loc[df_updated.loc[idx, 'old_idx'], 'Name'])
+            changed['old description'].append(self.avl_bom.loc[df_updated.loc[idx, 'old_idx'], 'Description'])
+
+            changed['new index'].append(df_updated.loc[idx, 'new_idx'])
+            changed['new pn'].append(self.avl_bom_updated.loc[df_updated.loc[idx, 'new_idx'], 'Name'])
+            changed['new description'].append(self.avl_bom_updated.loc[df_updated.loc[idx, 'new_idx'], 'Description'])
+        pd.DataFrame.from_dict(changed).to_csv(os.path.join(path, 'changed.csv'))
+
+        removed = {'Part Number': [], 'Description': []}
+        for idx in tracker.not_found_to_df()['idx']:
+            removed['Part Number'].append(self.avl_bom.loc[idx, 'Name'])
+            removed['Description'].append(self.avl_bom.loc[idx, 'Description'])
+        pd.DataFrame.from_dict(removed).to_csv(os.path.join(path, 'removed.csv'))
+
+        added = {'Part Number': [], 'Description': []}
+        for idx in tracker_reversed.not_found_to_df()['idx']:
+            added['Part Number'].append(self.avl_bom_updated.loc[idx, 'Name'])
+            added['Description'].append(self.avl_bom_updated.loc[idx, 'Description'])
+        pd.DataFrame.from_dict(added).to_csv(os.path.join(path, 'added.csv'))
+        shutil.make_archive(save_name, 'zip', path)
+        print(save_name)
+        shutil.rmtree(path)
+
 
 ########################################################################################################################
 # CCL Updating
@@ -144,11 +172,11 @@ class CCL:
 
     def _match_conditions(self, row, ccledit, to_update):
         if to_update[4] == 'full':
-            ccledit.highglight_row(row, 'YELLOW')
+            ccledit.highlight_row(row, 'GREEN')
         elif to_update[4] == 'partial':
-            ccledit.highglight_row(row, 'RED')
+            ccledit.highlight_row(row, 'RED')
         elif to_update[4] == 'fn_only':
-            ccledit.highglight_row(row, 'YELLOW')
+            ccledit.highlight_row(row, 'YELLOW')
 
     def _removed_only(self, ccledit, removed):
         for row in range(len(ccledit.table.rows)):
@@ -304,7 +332,7 @@ class CCLEditor:
         for cell in self.table.rows[row].cells:
             for paragraph in cell.paragraphs:
                 for run in paragraph.runs:
-                    run.font.italic = getattr(WD_COLOR_INDEX, colour)
+                    run.font.highlight_color = getattr(WD_COLOR_INDEX, colour)
 
     def set_colour(self, row, column, r, g, b):
         for paragraph in self.table.rows[row].cells[column].paragraphs:
@@ -367,7 +395,5 @@ class CCLEditor:
 
 if __name__ == '__main__':
     import pandas as pd
-    ccl = CCL()
-    ccl.ccl_docx = 'ccl.docx'
-    ccl.set_bom_compare('reva.csv', 'revc.csv')
-    ccl.save_compare(os.getcwd())
+    ccl = CCLEditor('rev c bugatti.docx')
+    ccl.highlight_row(1, 'YELLOW')

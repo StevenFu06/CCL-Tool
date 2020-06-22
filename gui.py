@@ -6,13 +6,16 @@ from tkinter import messagebox
 
 from pandastable import Table
 import pandas as pd
+from StyleFrame import StyleFrame, Styler
 
 from ccl import *
 from compare import *
 from package import Parent
-from StyleFrame import StyleFrame, Styler
+import progressbar
 
 from multiprocessing import freeze_support
+import datetime as dt
+import time
 import threading
 import os
 
@@ -31,6 +34,11 @@ class Root(tk.Tk):
         self.page = -1
         self.title(self.TITLE)
         self.settings()
+
+        self.bom_compare = tk.BooleanVar()
+        self.ccl_update = tk.BooleanVar()
+        self.col_docs = tk.BooleanVar()
+        self.check_ill = tk.BooleanVar()
 
         self.container = tk.Frame(self)
         self.container.pack(pady=(1, 0), expand=True, fill='both')
@@ -93,11 +101,6 @@ class Root(tk.Tk):
 
         center_check_button = tk.Frame(self.options_frame, width=5, height=5)
         center_check_button.pack(padx=5, pady=5, expand=True)
-
-        self.bom_compare = tk.BooleanVar()
-        self.ccl_update = tk.BooleanVar()
-        self.col_docs = tk.BooleanVar()
-        self.check_ill = tk.BooleanVar()
 
         check_bom_compare = ttk.Checkbutton(center_check_button,
                                             text='Bill of Material Comparison',
@@ -182,7 +185,6 @@ class Settings(tk.Toplevel):
             self.controller.ccl.processes = 1
         else:
             self.controller.ccl.processes = round(cpu_usage / 100 * cores)
-            print(self.controller.ccl.processes)
 
     @staticmethod
     def invalid_input():
@@ -216,7 +218,7 @@ class BomInput(tk.Frame):
         bom_new.pack(anchor='center', pady=5, padx=5)
         self.label_filename_new.pack(anchor='center')
 
-        bom_save = ttk.Button(centered_frame, text='Save As Directory Bom Compare (Optional)',
+        bom_save = ttk.Button(centered_frame, text='Save As Directory Bom Compare',
                               command=self.file_dialog_save)
         bom_save.pack(anchor='center')
         self.label_filename_save = ttk.Label(centered_frame, text='')
@@ -239,7 +241,10 @@ class BomInput(tk.Frame):
         self.ccl.avl_bom_updated = pd.read_csv(filename.name)
 
     def file_dialog_save(self):
-        filename = filedialog.askdirectory(initialdir='/', title='Save As')
+        filename = filedialog.asksaveasfilename(initialdir='/',
+                                                title='Save As',
+                                                filetypes=(('Zip', '.zip'),),
+                                                defaultextension='.zip')
         self.label_filename_save.configure(text=filename)
         self.label_filename_save.pack()
 
@@ -546,26 +551,65 @@ class FilterCheck(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ccl_loc = None
+        self.report_save = None
         self.check_button()
 
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
+
     def check_button(self):
-        button = ttk.Button(self, text='Browse for CCL', command=self.browse)
-        button.pack()
-        self.label = ttk.Label(self, text='')
-        self.label.pack()
+        button_ccl = ttk.Button(self, text='Browse for CCL', command=self.browse)
+        button_ccl.pack()
+        self.label_browse = ttk.Label(self, text='')
+        self.label_browse.pack()
+
+        button_save = ttk.Button(self, text='Save Report', command=self.save)
+        button_save.pack()
+        self.label_save = ttk.Label(self, text='')
+        self.label_save.pack()
+
+        button_run = ttk.Button(self, text='Run', command=self.start_thread)
+        button_run.pack()
+
+        self.progressbar = ttk.Progressbar(self, length=300)
+        self.progressbar.pack(expand=True, padx=5, pady=(5, 0), fill='x')
+        self.progressbar_label = ttk.Label(self, text='Press Run to begin')
+        self.progressbar_label.pack(anchor='w')
 
     def browse(self):
         filename = filedialog.askopenfile(initialdir='/', title='Select CCL')
-        self.label.configure(text=filename.name)
+        self.label_browse.configure(text=filename.name)
         self.ccl_loc = filename.name
-        self.filtered = Parser(self.ccl_loc).filter()
-        self.display_df()
 
-    def display_df(self):
-        frame = Frame(self)
-        frame.pack(fill=BOTH, expand=True)
-        self.dfdisplay = Table(frame, dataframe=self.filtered)
-        self.dfdisplay.show()
+    def save(self):
+        filename = filedialog.asksaveasfilename(initialdir='/',
+                                                title='Save Report',
+                                                filetypes=(('CSV', '.csv'),),
+                                                defaultextension='.csv')
+        self.label_save.config(text=filename)
+        self.report_save = filename
+
+    def start_thread(self):
+        self.progressbar.config(mode='indeterminate')
+        self.progressbar.start()
+        self.progressbar_label.config(text='Running')
+        self.submit_thread = threading.Thread(target=lambda: Parser(self.ccl_loc).filter().to_csv(self.report_save))
+        self.submit_thread.daemon = True
+        self.submit_thread.start()
+        self.after(20, self.check_thread)
+
+    def check_thread(self):
+        if self.submit_thread.is_alive():
+            self.after(20, self.check_thread)
+        else:
+            self.submit_thread.join()
+            self.progressbar.stop()
+            self.progressbar.config(mode='determinate')
+            self.progressbar_label.config(text='Done')
 
 
 class Run(tk.Toplevel):
@@ -574,6 +618,7 @@ class Run(tk.Toplevel):
         self.controller = controller
         self.ccl = controller.ccl
 
+        self.total_progress()
         self.prompt()
         self.controls()
 
@@ -597,8 +642,11 @@ class Run(tk.Toplevel):
         promptframe = Frame(self)
         promptframe.pack(expand=True, fill=BOTH, padx=5)
 
-        self.progressbar = ttk.Progressbar(promptframe, mode='indeterminate')
-        self.progressbar.pack(fill='x', pady=5)
+        self.progressbar = ttk.Progressbar(promptframe, mode='determinate', maximum=progressbar.total)
+        self.progressbar.pack(fill='x', pady=(5, 0))
+
+        self.progress_label = ttk.Label(promptframe, text='Press Run to begin')
+        self.progress_label.pack(anchor='w', pady=(0, 5))
 
         self.console = Text(promptframe, wrap='word')
         self.console.pack(side='left', expand=True, fill=BOTH)
@@ -614,6 +662,7 @@ class Run(tk.Toplevel):
 
             print('Starting BOM Compare')
             self.ccl.save_compare(self.controller.compare_saveas)
+            progressbar.add_current(1)
             print('BOM Compare finished')
 
         if self.controller.ccl_update.get():
@@ -623,11 +672,13 @@ class Run(tk.Toplevel):
                 print('Starting to update the CCL')
                 self.ccl.update_ccl(self.controller.ccl_saveas)
                 print('CCL Has been updated and saved')
+                progressbar.add_current(1)
 
         if self.controller.col_docs.get():
             print('Collecting Documents')
             self.ccl.collect_documents()
             print('Documents have been successfully collected')
+            # Progressbar progress will be updated in the filehandler module
 
         if self.controller.check_ill.get():
             if self.controller.ccl_saveas is None:
@@ -636,21 +687,47 @@ class Run(tk.Toplevel):
             self.ccl.collect_illustrations()
             self.ccl.insert_illustration_data(self.controller.ccl_saveas)
             print('Illustrations have been collected and CCL has been updated')
-
+            # Progressbar progress will be updated in the CCL module
+        self.progressbar['value'] = progressbar.total
+        self.progress_label.config(text='Done')
         print('FINISHED!')
 
+    def total_progress(self):
+        progressbar.reset()
+        if self.controller.bom_compare.get():
+            progressbar.add_total(1)
+        if self.controller.ccl_update.get():
+            progressbar.add_total(1)
+        if self.controller.col_docs.get():
+            progressbar.add_total(2)
+        if self.controller.check_ill.get():
+            progressbar.add_total(1)
+
     def start_threading(self):
+        self.progress_label.config(text='Estimating Time Reamining')
         self.submit_thread = threading.Thread(target=self.run)
+        self.start_time = time.time()
         self.submit_thread.daemon = True
         self.submit_thread.start()
-        self.progressbar.start()
-        self.after(20, self.check_thread)
+        self.after(1000, self.check_thread)
 
     def check_thread(self):
         if self.submit_thread.is_alive():
-            self.after(20, self.check_thread)
-        else:
-            self.progressbar.stop()
+            self.time_remaining()
+            self.after(1000, self.check_thread)
+
+    def time_remaining(self):
+        elapsed_time = time.time() - self.start_time
+        self.progressbar['value'] = progressbar.current
+        time_remaining = round((1 - progressbar.current) * elapsed_time)
+        if time_remaining < 60:
+            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
+        elif 3600 > time_remaining > 60:
+            time_remaining = round(time_remaining / 60)
+            self.progress_label.config(text=f'Estimated TIme Remaining: {time_remaining} minutes')
+        elif time_remaining > 3600:
+            time_remaining = dt.timedelta(seconds=time_remaining)
+            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining}')
 
 
 class TextRedirector(object):
@@ -721,9 +798,11 @@ class ROHSCompare(tk.Toplevel):
         save_b.pack(side='right')
 
     def compare(self, a_avl, b_avl):
-        a_bom = Bom(a_avl, Parent(a_avl).build_tree())
-        b_bom = Bom(b_avl, Parent(b_avl).build_tree())
-        a_only = [int(idx) for idx, pn in (a_bom - b_bom)]
+        a_pns, b_pns = set(a_avl['Name']), set(b_avl['Name'])
+        exclusive = {pn for pn in a_pns if pn not in b_pns}
+        df_exclusive = pd.DataFrame()
+        for pn in exclusive:
+            df_exclusive = pd.concat([a_avl.loc[a_avl['Name'] == pn], df_exclusive])
 
         sf = StyleFrame(a_avl)
         style = Styler(bg_color='yellow',
@@ -742,7 +821,7 @@ class ROHSCompare(tk.Toplevel):
         for idx in a_avl.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style_default)
 
-        for idx in a_only:
+        for idx in df_exclusive.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style)
         self.save_as(sf)
 
@@ -778,5 +857,5 @@ if __name__ == '__main__':
     freeze_support()
     tool = Root()
     # tool.style = ttk.Style()
-    # tool.style.theme_use('classic')
+    # tool.style.theme_use('vista')
     tool.mainloop()

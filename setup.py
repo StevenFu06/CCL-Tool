@@ -19,7 +19,7 @@ includefiles = ["pandastable/dataexplore.gif", "pandastable/datasets",
                 ]
 packages = ['docx', 'selenium', 'pickle', 'os', 'time', 'pathlib', 'bs4', 'tkinter', 'pandastable', 'threading',
             'pandas', 're', 'zipfile', 'json', 'copy', 'shutil', 'io', 'concurrent', 'pdfminer', 'pytesseract',
-            'pdf2image', 'matplotlib', 'numpy', 'mpl_toolkits', 'multiprocessing', 'StyleFrame']
+            'pdf2image', 'matplotlib', 'numpy', 'mpl_toolkits', 'multiprocessing', 'StyleFrame', 'datetime']
 
 options = {
     'build_exe': {
