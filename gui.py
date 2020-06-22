@@ -35,6 +35,11 @@ class Root(tk.Tk):
         self.title(self.TITLE)
         self.settings()
 
+        self.bom_compare = tk.BooleanVar()
+        self.ccl_update = tk.BooleanVar()
+        self.col_docs = tk.BooleanVar()
+        self.check_ill = tk.BooleanVar()
+
         self.container = tk.Frame(self)
         self.container.pack(pady=(1, 0), expand=True, fill='both')
         self.container.grid_rowconfigure(0, weight=1)
@@ -96,11 +101,6 @@ class Root(tk.Tk):
 
         center_check_button = tk.Frame(self.options_frame, width=5, height=5)
         center_check_button.pack(padx=5, pady=5, expand=True)
-
-        self.bom_compare = tk.BooleanVar()
-        self.ccl_update = tk.BooleanVar()
-        self.col_docs = tk.BooleanVar()
-        self.check_ill = tk.BooleanVar()
 
         check_bom_compare = ttk.Checkbutton(center_check_button,
                                             text='Bill of Material Comparison',
@@ -218,7 +218,7 @@ class BomInput(tk.Frame):
         bom_new.pack(anchor='center', pady=5, padx=5)
         self.label_filename_new.pack(anchor='center')
 
-        bom_save = ttk.Button(centered_frame, text='Save As Directory Bom Compare (Optional)',
+        bom_save = ttk.Button(centered_frame, text='Save As Directory Bom Compare',
                               command=self.file_dialog_save)
         bom_save.pack(anchor='center')
         self.label_filename_save = ttk.Label(centered_frame, text='')
@@ -241,7 +241,10 @@ class BomInput(tk.Frame):
         self.ccl.avl_bom_updated = pd.read_csv(filename.name)
 
     def file_dialog_save(self):
-        filename = filedialog.askdirectory(initialdir='/', title='Save As')
+        filename = filedialog.asksaveasfilename(initialdir='/',
+                                                title='Save As',
+                                                filetypes=(('Zip', '.zip'),),
+                                                defaultextension='.zip')
         self.label_filename_save.configure(text=filename)
         self.label_filename_save.pack()
 
@@ -548,26 +551,65 @@ class FilterCheck(tk.Toplevel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ccl_loc = None
+        self.report_save = None
         self.check_button()
 
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
+        self.update()
+        self.minsize(self.winfo_width(), self.winfo_height())
+
     def check_button(self):
-        button = ttk.Button(self, text='Browse for CCL', command=self.browse)
-        button.pack()
-        self.label = ttk.Label(self, text='')
-        self.label.pack()
+        button_ccl = ttk.Button(self, text='Browse for CCL', command=self.browse)
+        button_ccl.pack()
+        self.label_browse = ttk.Label(self, text='')
+        self.label_browse.pack()
+
+        button_save = ttk.Button(self, text='Save Report', command=self.save)
+        button_save.pack()
+        self.label_save = ttk.Label(self, text='')
+        self.label_save.pack()
+
+        button_run = ttk.Button(self, text='Run', command=self.start_thread)
+        button_run.pack()
+
+        self.progressbar = ttk.Progressbar(self, length=300)
+        self.progressbar.pack(expand=True, padx=5, pady=(5, 0), fill='x')
+        self.progressbar_label = ttk.Label(self, text='Press Run to begin')
+        self.progressbar_label.pack(anchor='w')
 
     def browse(self):
         filename = filedialog.askopenfile(initialdir='/', title='Select CCL')
-        self.label.configure(text=filename.name)
+        self.label_browse.configure(text=filename.name)
         self.ccl_loc = filename.name
-        self.filtered = Parser(self.ccl_loc).filter()
-        self.display_df()
 
-    def display_df(self):
-        frame = Frame(self)
-        frame.pack(fill=BOTH, expand=True)
-        self.dfdisplay = Table(frame, dataframe=self.filtered)
-        self.dfdisplay.show()
+    def save(self):
+        filename = filedialog.asksaveasfilename(initialdir='/',
+                                                title='Save Report',
+                                                filetypes=(('CSV', '.csv'),),
+                                                defaultextension='.csv')
+        self.label_save.config(text=filename)
+        self.report_save = filename
+
+    def start_thread(self):
+        self.progressbar.config(mode='indeterminate')
+        self.progressbar.start()
+        self.progressbar_label.config(text='Running')
+        self.submit_thread = threading.Thread(target=lambda: Parser(self.ccl_loc).filter().to_csv(self.report_save))
+        self.submit_thread.daemon = True
+        self.submit_thread.start()
+        self.after(20, self.check_thread)
+
+    def check_thread(self):
+        if self.submit_thread.is_alive():
+            self.after(20, self.check_thread)
+        else:
+            self.submit_thread.join()
+            self.progressbar.stop()
+            self.progressbar.config(mode='determinate')
+            self.progressbar_label.config(text='Done')
 
 
 class Run(tk.Toplevel):
@@ -681,11 +723,12 @@ class Run(tk.Toplevel):
         if time_remaining < 60:
             self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
         elif 3600 > time_remaining > 60:
-            time_remaining = round(time_remaining/60)
+            time_remaining = round(time_remaining / 60)
             self.progress_label.config(text=f'Estimated TIme Remaining: {time_remaining} minutes')
         elif time_remaining > 3600:
             time_remaining = dt.timedelta(seconds=time_remaining)
             self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining}')
+
 
 class TextRedirector(object):
     def __init__(self, widget, tag="stdout"):
