@@ -31,7 +31,10 @@ base = None
 if sys.platform == "win32":
     base = "Win32GUI"
 
-executables = [Executable("gui.py", base=base)]
+executables = [Executable("gui.py",
+                          base=base,
+                          icon='icons\\sciex.ico',
+                          targetName='CCL Tool.exe')]
 
 setup(name="CCL Tool",
       options=options,

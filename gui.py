@@ -771,11 +771,14 @@ class Run(tk.Toplevel):
         framecrtl = tk.Frame(self)
         framecrtl.pack()
 
-        run = tk.Button(framecrtl, text='Run', command=self.start_threading)
-        run.pack(side='left', padx=2, pady=2)
+        run = ModernButton(framecrtl, text='Run', command=self.start_threading, width=5)
+        run.pack(side='left', padx=5, pady=5)
 
-        abort = tk.Button(framecrtl, text='Abort', command=self.root.destroy)
-        abort.pack(side='right', padx=2, pady=2)
+        cancel = ModernButton(framecrtl, text='Cancel', command=self.destroy, width=5)
+        cancel.pack(side='left', padx=5, pady=5)
+
+        abort = ModernButton(framecrtl, text='Abort', command=self.root.destroy, width=5)
+        abort.pack(side='left', padx=5, pady=5)
 
     def prompt(self):
         promptframe = tk.Frame(self)
@@ -939,7 +942,7 @@ class ROHSCompare(tk.Frame):
         self.a_entry.clear()
         self.a_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.bom_a = filename
+        self.bom_a = filename.name
 
     def bomb(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
@@ -948,11 +951,11 @@ class ROHSCompare(tk.Frame):
         self.b_entry.clear()
         self.b_entry.insert(tk.END, filename.name)
         self.root.b_entry = filename
-        self.bom_b = filename
+        self.bom_b = filename.name
 
     def compare(self, a_avl, b_avl):
-        a_avl = pd.read_csv(a_avl)
-        b_avl = pd.read_csv(b_avl)
+        a_avl = self.read_avl(a_avl, 0)
+        b_avl = self.read_avl(b_avl, 0)
 
         a_pns, b_pns = set(a_avl['Name']), set(b_avl['Name'])
         exclusive = {pn for pn in a_pns if pn not in b_pns}
@@ -980,6 +983,19 @@ class ROHSCompare(tk.Frame):
         for idx in df_exclusive.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style)
         self.save_as(sf)
+
+    @staticmethod
+    def read_avl(path, skiprow):
+        df = pd.read_csv(path, skiprows=skiprow)
+        try:
+            df['Name']
+        except KeyError:
+            skiprow += 1
+            if skiprow < 10:
+                df = CCL.read_avl(path, skiprow)
+            else:
+                raise TypeError('File is in wrong format')
+        return df
 
     def save_as(self, sf):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
