@@ -59,7 +59,6 @@ class Parser:
                 bold = True if row.cells[0].paragraphs[0].runs[0].bold else False
             except IndexError:  # Note when this happens it means that the text was a hyper link or not plain text
                 print(f'Error occurred when parsing pn after {to_df[len(to_df)-1][0]}')
-                continue
             to_df.append(temp + [bold])
         return pd.DataFrame(data=to_df, columns=columns)
 

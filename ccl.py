@@ -38,8 +38,21 @@ class CCL:
         self.avl_bom_path = avl_bom_old
         self.avl_bom_updated_path = avl_bom_new
 
-        self.avl_bom = pd.read_csv(avl_bom_old)
-        self.avl_bom_updated = pd.read_csv(avl_bom_new)
+        self.avl_bom = CCL.read_avl(avl_bom_old, 0)
+        self.avl_bom_updated = CCL.read_avl(avl_bom_new, 0)
+
+    @staticmethod
+    def read_avl(path, skiprow):
+        df = pd.read_csv(path, skiprows=skiprow)
+        try:
+            df['Name']
+        except KeyError:
+            skiprow += 1
+            if skiprow < 10:
+                df = CCL.read_avl(path, skiprow)
+            else:
+                raise TypeError('File is in wrong format')
+        return df
 
     def avl_path_to_df(self):
         self.avl_bom = pd.read_csv(self.avl_bom_path)
@@ -61,11 +74,11 @@ class CCL:
         return tracker, tracker_reversed
 
     def _get_bom_obj(self):
-        tree = Parent(self.avl_bom_path).build_tree()
-        bom = Bom(pd.read_csv(self.avl_bom_path), tree)
+        tree = Parent(self.avl_bom).build_tree()
+        bom = Bom(self.avl_bom, tree)
 
-        tree_updated = Parent(self.avl_bom_updated_path).build_tree()
-        bom_updated = Bom(pd.read_csv(self.avl_bom_updated_path), tree_updated)
+        tree_updated = Parent(self.avl_bom_updated).build_tree()
+        bom_updated = Bom(self.avl_bom_updated, tree_updated)
         return tree, bom, tree_updated, bom_updated
 
     def save_compare(self, save_name):
@@ -98,8 +111,7 @@ class CCL:
             added['Part Number'].append(self.avl_bom_updated.loc[idx, 'Name'])
             added['Description'].append(self.avl_bom_updated.loc[idx, 'Description'])
         pd.DataFrame.from_dict(added).to_csv(os.path.join(path, 'added.csv'))
-        shutil.make_archive(save_name, 'zip', path)
-        print(save_name)
+        shutil.make_archive(save_name.replace('.zip', ''), 'zip', path)
         shutil.rmtree(path)
 
 
