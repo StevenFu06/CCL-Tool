@@ -510,6 +510,7 @@ class DocumentCollector(tk.Frame):
             self.user.clear()
 
     def clear_password(self, e):
+        self.password.label.config(show='*')
         if self.password.get() == 'Enter Enovia Password':
             self.password.clear()
 
