@@ -163,7 +163,8 @@ class Enovia:
 
     def _enable_download_headless(self, download_dir):
         """Enables headless download
-        I have no idea what this does but it allows headless downloads, and I am forever greatfull
+
+        I have no idea what this does but it allows headless downloads, and I am forever grateful
         for the person who has had to sit there and figure this out
         """
         self.browser.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
@@ -193,20 +194,11 @@ class Enovia:
 
 
 if __name__ == '__main__':
-
-    with open('credentials', 'rb') as read:
-        cred = pickle.load(read)
-
-    from concurrent.futures import ThreadPoolExecutor
-
-    def multithreading(part):
-        enovia = Enovia(cred['user'], cred['pass'], headless=True)
-        with enovia as enovia:
-            enovia.search(part)
+    from selenium.common.exceptions import SessionNotCreatedException, UnexpectedAlertPresentException
+    try:
+        with Enovia('Steven.Fu', 'qweqwe', headless=False) as enovia:
+            enovia.search('5068482')
             enovia.open_last_result()
             enovia.download_specification_files(os.getcwd())
-
-    test_list = ['5068482', '5068249', '5068248', '5074524']
-    with ThreadPoolExecutor(max_workers=len(test_list)) as executor:
-        for result in executor.map(multithreading, test_list):
-            pass
+    except UnexpectedAlertPresentException:
+        print('invalid username')
