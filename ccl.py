@@ -6,7 +6,6 @@ Author: Steven Fu
 Last Edit: Steven Fu
 """
 
-# Imports
 from docx.shared import RGBColor
 from docx.enum.text import WD_COLOR_INDEX
 from docx.shared import Pt
@@ -64,9 +63,9 @@ class CCL:
     def set_bom_compare(self, avl_bom_old: str, avl_bom_new: str):
         """Sets the bom vairables, convert file paths to df
 
-        Attributes:
-            avl_bom_old (str): filepath to the old avl multilevel bom
-            avl_bom_new (str): filepath to the new avl multilevel bom
+        Parameters:
+            :param avl_bom_old: filepath to the old avl multilevel bom
+            :param avl_bom_new: filepath to the new avl multilevel bom
         """
         # Set old
         self.avl_bom_path = avl_bom_old
@@ -79,9 +78,9 @@ class CCL:
     def read_avl(path: str, skiprow: int):
         """Read CSV and determine headers row
 
-        Attributes:
-            path: path to the csv file
-            skiprow: recursive call to determine which row is header
+        Parameters:
+            :param path: path to the csv file
+            :param skiprow: recursive call to determine which row is header
         """
         df = pd.read_csv(path, skiprows=skiprow)
         try:
@@ -133,8 +132,8 @@ class CCL:
     def save_compare(self, save_name: str):
         """Outputs the BOM comparison to a nice format
 
-        Attributes:
-            save_name (str): Save name/ path of the zip file
+        Parameters:
+            :param save_name: Save name/ path of the zip file
 
         :returns: outputs a zip file containing a added.csv, changed.csv, and removed.csv
         """
@@ -178,6 +177,15 @@ class CCL:
 ########################################################################################################################
 
     def update_ccl(self, save_path: str, ccl_docx: str = None):
+        """Will perform a BOM comparison as well as a CCL Update
+
+        Parameters:
+            :param save_path: save location of the updated CCL
+            :param ccl_docx: same as the class ccl_docx, CCL docx location
+
+        :return: A new updated CCL saved to the specified location
+        """
+
         if ccl_docx is not None:
             self.ccl_docx = ccl_docx
         elif self.ccl_docx is None:
@@ -187,10 +195,26 @@ class CCL:
         all_updates, removed = tracker.combine_found(), tracker.not_found_to_df()
         ccledit = CCLEditor(self.ccl_docx)
         self._updates_only(ccledit, all_updates)
-
+        self._removed_only(ccledit, removed)
         ccledit.save(save_path)
 
     def _updates_only(self, ccledit, all_updates):
+        """Deals with updating the CCL only
+
+        All changes made to the CCL is done through the CCLEdit object
+
+        Parameters:
+            :param ccledit: ccledit object for easy editing of the docx ccl
+            :param all_updates: a dataframe including added and changed part numbers (tracker.combine_found())
+
+        Calls _update_pn, _update_desc_fn, _update_manufacturer, _update_model, and match_conditions
+        to update the formating given all_updates.
+
+        The above functions have params:
+            :param row: row to be updated
+            :param to_update: dataframe of to be updated parts
+            :param ccledit: CCL edit object
+        """
         for row in range(len(ccledit.table.rows)):
             pn = ccledit.get_text(row, 0)
             if pn in all_updates['old_pn'].to_list():
@@ -209,16 +233,22 @@ class CCL:
                 all_updates = all_updates[all_updates.old_idx != to_update[0]]
 
     def _update_pn(self, row, to_update, ccledit):
+        """Updates column 1, part number"""
+
         align = ccledit.get_justification(row, 0)
         ccledit.set_text(row, 0, to_update[3])
         ccledit.set_justification(row, 0, align)
 
     def _update_desc_fn(self, row, to_update, ccledit):
+        """Updates description and find number"""
+
         desc = self.avl_bom_updated.loc[to_update[2], 'Description']
         fn = self.avl_bom_updated.loc[to_update[2], 'F/N']
         ccledit.set_text(row, 1, f'{desc} (#{fn})')
 
     def _update_manufacturer(self, row, to_update, ccledit):
+        """Updates manufacturer"""
+
         # Pop manufacturers one at a time because multiple can exist
         manufacturer = self.avl_bom_updated.loc[to_update[2], 'Manufacturer'].split('\n')[0]
         self.avl_bom_updated.loc[to_update[2], 'Manufacturer'] = \
@@ -230,6 +260,8 @@ class CCL:
         ccledit.set_text(row, 2, manufacturer)
 
     def _update_model(self, row, to_update, ccledit):
+        """Updates the model field in the CCL"""
+
         # Pop Equivalent one at a time because multiple can exist
         model = self.avl_bom_updated.loc[to_update[2], 'Equivalent'].split('\n')[0]
         self.avl_bom_updated.loc[to_update[2], 'Equivalent'] = \
@@ -241,6 +273,8 @@ class CCL:
         ccledit.set_text(row, 3, model)
 
     def _match_conditions(self, row, ccledit, to_update):
+        """Will highlight/ format the changed row"""
+
         if to_update[4] == 'full':
             ccledit.highlight_row(row, 'GREEN')
         elif to_update[4] == 'partial':
@@ -249,6 +283,14 @@ class CCL:
             ccledit.highlight_row(row, 'YELLOW')
 
     def _removed_only(self, ccledit, removed):
+        """Similar _update_only, this only deals with the removed items
+
+        Will format and edit the CCL through the CCLEdit object
+
+        Parameter:
+            :param ccledit: CCLEdit object
+            :param removed: removed dataframe form tracker
+        """
         for row in range(len(ccledit.table.rows)):
             pn = ccledit.get_text(row, 0)
             if pn in removed['pn'].to_list():
@@ -258,7 +300,14 @@ class CCL:
 # Specification Documents Gathering
 ########################################################################################################################
 
-    def collect_documents(self, headless=True):
+    def collect_documents(self, headless: bool=True):
+        """Collects the documents given the CCL
+
+        :param headless: Run selenium headless mode, default is yes
+
+        :return: structured folder based according to CSA submission package
+        """
+        # Error Checking/ missing info
         if self.ccl_docx is None:
             raise ValueError('CCL document is not given')
         if self.username is None or self.password is None:
@@ -266,6 +315,7 @@ class CCL:
         if self.path_ccl_data is None:
             raise ValueError('CCL Documents save location not given')
 
+        # Calls document collector
         collector = DocumentCollector(username=self.username,
                                       password=self.password,
                                       ccl=self.ccl_docx,
@@ -279,16 +329,28 @@ class CCL:
 ########################################################################################################################
 
     def collect_illustrations(self):
+        """Collects the illustrations using the Illustration class found in filehandler"""
+
+        # Error checking
         if self.ccl_docx is None:
             raise ValueError('CCL document is not given')
         if self.path_illustration is None:
             raise ValueError('Illustration save path not given')
+
+        # Collect ills
         illustration = Illustration(ccl=self.ccl_docx,
                                     save_dir=self.path_illustration,
                                     processes=self.processes)
         illustration.get_illustrations(ccl_dir=self.path_ccl_data)
 
-    def insert_illustration_data(self, save_path):
+    def insert_illustration_data(self, save_path: str):
+        """Insert illustration data into CCL
+
+        Will insert the illustration data according to the illustration folder into the CCL.
+        Will overwrite any existing illustration data in the CCL
+
+        :param save_path: Save location of updated CCL
+        """
         if self.ccl_docx is None:
             raise ValueError('CCL Document is not given')
         ccledit = CCLEditor(self.ccl_docx)
@@ -303,7 +365,14 @@ class CCL:
                 ccledit.set_bold(row, 4)
         ccledit.save(save_path)
 
-    def new_illustration_data(self, pn):
+    def new_illustration_data(self, pn: int):
+        """Format the techincal data to insert illustration data into the column
+
+        :param pn: part number
+        :return: a string with properly formatted illustration data and number
+        concated with existing text.
+        """
+        # Getting the illustration data information
         info = []
         for file in os.listdir(self.path_illustration):
             if file.endswith('.pdf'):
@@ -313,7 +382,7 @@ class CCL:
                 sch_assy = 'Assy.' if 'Assy.' in file.split(' ') else 'Sch.'
                 if str(pn) == str(file_pn):
                     info.append((ill_num, dnum[0], sch_assy))
-
+        # Foramtting and concatenating with existing data for final techincal data column
         illustration_data = 'Refer to'
         if info:
             for ill_num, dnum, sch_assy in info:
@@ -322,7 +391,14 @@ class CCL:
         return ''
 
     @staticmethod
-    def remove_illustration_data(technical_string):
+    def remove_illustration_data(technical_string: str):
+        """Removes any illustration data/ reference from technical column
+
+        :param technical_string: text extracted from technical data column
+
+        :return: a cleaned technical string stripped of illustration data
+        """
+        # Regex expression to accommodate as much variation and user input variation as possible
         results = re.findall(r'(?:\s*,|and)?\s*(?:Refer to)?\s*(?:Ill.|Ill)\s*(?:\d+.|\d+)\s*'
                              r'(?:Sch.|Assy.|Sch|Assy)\s*D\d+\s*(?:;|and)?',
                              technical_string, re.IGNORECASE)
@@ -330,23 +406,44 @@ class CCL:
             technical_string = technical_string.replace(result, '')
         return technical_string
 
-    def insert_illustration(self, ill_num, new_ill, save_path):
+    def insert_illustration(self, ill_num: int, new_ill: str, save_path: str):
+        """Inserts an illustration and updates the CCL with the new illustration
+
+        Parameters:
+            :param ill_num: illustration number
+            :param new_ill: new illustration location
+            :param save_path: save path of the illustration folder
+        """
         illustration = Illustration(self.ccl_docx, self.path_illustration)
         illustration.shift_up_ill(ill_num)
-        # DEAL WITH PATH MANAGEMENT WITH TKINTER DONT FORGET
         copyfile(new_ill, self.path_illustration)
         self.insert_illustration_data(save_path)
 
-    def delete_illustration(self, ill_num, rm_ill, save_path):
+    def delete_illustration(self, ill_num: int, rm_ill: str, save_path: str):
+        """"Deletes an illustration and updates the CCL with the new illustration
+
+        Parameters:
+            :param ill_num: illustration number
+            :param rm_ill: illustration to be removed location
+            :param save_path: save path of the illustration folder
+        """
         illustration = Illustration(self.ccl_docx, self.path_illustration)
         illustration.shift_down_ill(ill_num)
         os.remove(rm_ill)
-        # DEAL WITH PATH MANAGEMENT WITH TKINTER DONT FORGET
         self.insert_illustration_data(save_path)
 
 
 class CCLEditor:
+    """CCL Editor for easy interfacing with Python-docx and the CCL
 
+    Attributes:
+        document: the word document containing the ccl
+        table: the table within the word document containing the CCL
+
+    All functions require a row number for the row to be modified.
+    Funcitons ending with XXXX_row means the entire row will be modified,
+    while others will modify only modify one specific cell.
+    """
     def __init__(self, docx_path):
         self.document = Document(docx_path)
         self.table = self.document.tables[0]

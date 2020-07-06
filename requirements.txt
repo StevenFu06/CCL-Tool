@@ -37,5 +37,6 @@ sortedcontainers==2.1.0
 soupsieve==2.0
 StyleFrame==2.0.5
 urllib3==1.25.8
+Wand==0.5.9
 xlrd==1.2.0
 zipp==3.1.0
