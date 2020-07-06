@@ -1,3 +1,12 @@
+"""CCL Module for docx CCL interface
+
+Date: 2020-07-03
+Revision: A
+Author: Steven Fu
+Last Edit: Steven Fu
+"""
+
+# Imports
 from docx.shared import RGBColor
 from docx.enum.text import WD_COLOR_INDEX
 from docx.shared import Pt
@@ -12,6 +21,24 @@ import shutil
 
 
 class CCL:
+    """Main CCL Class
+
+    This class interfaces/ ties together all modules into one easily callalble class.
+    Class is then call by the gui to perform all functions.
+
+    Attributes:
+        ccl_docx (str): ccl document path
+        filtered (dataframe): dataframe of the filtered dataframe
+        avl_bom (dataframe): dataframe of the avl bom
+        avl_bom_path (str): Path to the AVl Bom
+        avl_bom_updated (dataframe): dataframe of an updated avl bom
+        avl_bom_updated_path (str): path to the updated avl bom
+        path_illustration (str): path to the illustration folder
+        path_ccl_data (str): path to the CCL documents folder
+        path_checks (str): paths to check before downloading form enovia
+        username (str): Enovia username
+        password (str): Enovia password
+    """
     def __init__(self):
         # Files
         self.ccl_docx = None  # Docx path
@@ -34,15 +61,28 @@ class CCL:
 # Bom comparison
 ########################################################################################################################
 
-    def set_bom_compare(self, avl_bom_old, avl_bom_new):
+    def set_bom_compare(self, avl_bom_old: str, avl_bom_new: str):
+        """Sets the bom vairables, convert file paths to df
+
+        Attributes:
+            avl_bom_old (str): filepath to the old avl multilevel bom
+            avl_bom_new (str): filepath to the new avl multilevel bom
+        """
+        # Set old
         self.avl_bom_path = avl_bom_old
         self.avl_bom_updated_path = avl_bom_new
-
+        # Set new
         self.avl_bom = CCL.read_avl(avl_bom_old, 0)
         self.avl_bom_updated = CCL.read_avl(avl_bom_new, 0)
 
     @staticmethod
-    def read_avl(path, skiprow):
+    def read_avl(path: str, skiprow: int):
+        """Read CSV and determine headers row
+
+        Attributes:
+            path: path to the csv file
+            skiprow: recursive call to determine which row is header
+        """
         df = pd.read_csv(path, skiprows=skiprow)
         try:
             df['Name']
@@ -55,25 +95,34 @@ class CCL:
         return df
 
     def avl_path_to_df(self):
+        """Converts avl_bom_path to df if not given"""
+
         self.avl_bom = pd.read_csv(self.avl_bom_path)
         self.avl_bom_updated = pd.read_csv(self.avl_bom_updated_path)
 
     def bom_compare(self):
-        # ISSUE where bom_compare outputs nothing, needs to be converted to df or something
+        """Performs a bom compare
+
+        tracker: contains the information of removed and updated parts
+        tracker_reversed: contains the information of added parts
+
+        :return: tracker, tracker_reversed
+        """
         if self.avl_bom is None or self.avl_bom_updated is None:
             raise ValueError('Missing required fields, ccl, avl_new or avl_old')
-
+        #  Create bom object for forward compare
         tree, bom, tree_updated, bom_updated = self._get_bom_obj()
         tracker = Tracker()
         Rearrange(bom, bom_updated, tracker)
-
+        # Create new object because previous object was modified during rearraange process
         tree, bom, tree_updated, bom_updated = self._get_bom_obj()
         tracker_reversed = Tracker()
         Rearrange(bom_updated, bom, tracker_reversed)
-
         return tracker, tracker_reversed
 
     def _get_bom_obj(self):
+        """Used to create bom object"""
+
         tree = Parent(self.avl_bom).build_tree()
         bom = Bom(self.avl_bom, tree)
 
@@ -81,12 +130,21 @@ class CCL:
         bom_updated = Bom(self.avl_bom_updated, tree_updated)
         return tree, bom, tree_updated, bom_updated
 
-    def save_compare(self, save_name):
+    def save_compare(self, save_name: str):
+        """Outputs the BOM comparison to a nice format
+
+        Attributes:
+            save_name (str): Save name/ path of the zip file
+
+        :returns: outputs a zip file containing a added.csv, changed.csv, and removed.csv
+        """
+        # Perform bom comparison
         tracker, tracker_reversed = self.bom_compare()
+        # Creates temporary directory to be converted into a zip file
         path = os.path.join(os.getcwd(), 'bom compare temp')
         if not os.path.exists(path):
             os.makedirs(path)
-
+        # Format changed.csv
         df_updated = tracker.combine_found().reset_index()
         changed = {'old index': [], 'old pn': [], 'old description': [],
                    'new index': [], 'new pn': [], 'new description': []}
@@ -99,27 +157,27 @@ class CCL:
             changed['new pn'].append(self.avl_bom_updated.loc[df_updated.loc[idx, 'new_idx'], 'Name'])
             changed['new description'].append(self.avl_bom_updated.loc[df_updated.loc[idx, 'new_idx'], 'Description'])
         pd.DataFrame.from_dict(changed).to_csv(os.path.join(path, 'changed.csv'))
-
+        # Format removed.csv
         removed = {'Part Number': [], 'Description': []}
         for idx in tracker.not_found_to_df()['idx']:
             removed['Part Number'].append(self.avl_bom.loc[idx, 'Name'])
             removed['Description'].append(self.avl_bom.loc[idx, 'Description'])
         pd.DataFrame.from_dict(removed).to_csv(os.path.join(path, 'removed.csv'))
-
+        # Format added.csv
         added = {'Part Number': [], 'Description': []}
         for idx in tracker_reversed.not_found_to_df()['idx']:
             added['Part Number'].append(self.avl_bom_updated.loc[idx, 'Name'])
             added['Description'].append(self.avl_bom_updated.loc[idx, 'Description'])
         pd.DataFrame.from_dict(added).to_csv(os.path.join(path, 'added.csv'))
+        # Zip and cleanup
         shutil.make_archive(save_name.replace('.zip', ''), 'zip', path)
         shutil.rmtree(path)
-
 
 ########################################################################################################################
 # CCL Updating
 ########################################################################################################################
 
-    def update_ccl(self, save_path, ccl_docx=None):
+    def update_ccl(self, save_path: str, ccl_docx: str = None):
         if ccl_docx is not None:
             self.ccl_docx = ccl_docx
         elif self.ccl_docx is None:
