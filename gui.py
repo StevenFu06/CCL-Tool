@@ -432,7 +432,7 @@ class UpdateCCL(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ccl_update_loc = filename
+        self.root.ccl_update_loc = filename.name
 
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,

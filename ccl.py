@@ -276,7 +276,7 @@ class CCL:
         """Will highlight/ format the changed row"""
 
         if to_update[4] == 'full':
-            ccledit.highlight_row(row, 'GREEN')
+            ccledit.highlight_row(row, 'BRIGHT_GREEN')
         elif to_update[4] == 'partial':
             ccledit.highlight_row(row, 'RED')
         elif to_update[4] == 'fn_only':

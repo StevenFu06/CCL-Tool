@@ -257,6 +257,8 @@ def Rearrange(bom_old, bom_new, tracker):
                         rearrange(bom_old.parent, f'{part[0]} {part[1]}', f'{parent_old_index} {parent_new[1]}')
                 except TypeError:
                     continue
+    for part in tracker.not_found:
+        print(f'{part[1]} was not found')
 
 
 if __name__ == '__main__':
