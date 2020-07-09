@@ -292,7 +292,7 @@ class DocumentCollector:
         while self.failed and prev_failed_len != len(self.failed):
             prev_failed_len = len(self.failed)
             with ThreadPoolExecutor(self.processes) as executor:
-                self.failed = [failed for failed in executor.map(self._multidownload, pns) if failed is not None]
+                self.failed = [failed for failed in executor.map(self._multidownload, self.failed) if failed is not None]
         return self.failed
 
     def extract_all(self):

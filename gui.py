@@ -521,7 +521,7 @@ class DocumentCollector(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.docs_ccl = filename
+        self.root.docs_ccl = filename.name
 
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
