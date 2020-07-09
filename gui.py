@@ -187,9 +187,9 @@ class Root(tk.Tk):
             if cpu_usage < 0 or cpu_usage > 100:
                 self.invalid_input()
             elif cpu_usage == 0:
-                self.controller.ccl.processes = 1
+                self.processes = 1
             else:
-                self.controller.ccl.processes = round(cpu_usage / 100 * cores)
+                self.processes = round(cpu_usage / 100 * cores)
         except ValueError:
             self.invalid_input()
 
@@ -688,7 +688,7 @@ class Illustrations(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ill_ccl = filename
+        self.root.ill_ccl = filename.name
 
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
@@ -703,8 +703,8 @@ class Illustrations(tk.Frame):
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
-        self.save_entry.clear()
-        self.save_entry.insert(tk.END, filename)
+        self.save_entry_doc.clear()
+        self.save_entry_doc.insert(tk.END, filename)
         self.root.cache_dir = filename
         self.root.ill_scan = filename
 
@@ -761,7 +761,6 @@ class Run(tk.Toplevel):
         self.total_progress()
         self.prompt()
         self.controls()
-
         sys.stdout = TextRedirector(self.console, 'stdout')
         sys.stderr = TextRedirector(self.console, 'stderr')
 
@@ -851,7 +850,10 @@ class Run(tk.Toplevel):
             progressbar.add_total(1)
 
     def start_threading(self):
-        self.progress_label.config(text='Estimating Time Reamining')
+        # For Demo only commented
+        self.progress_label.config(text='Running...')
+        # self.progress_label.config(text='Estimating Time Reamining')
+
         self.prev_prog = progressbar.current
         self.submit_thread = threading.Thread(target=self.run)
         self.start_time = time.time()
@@ -869,14 +871,16 @@ class Run(tk.Toplevel):
         elapsed_time = time.time() - self.start_time
         self.progressbar['value'] = progressbar.current
         time_remaining = round((1 - progressbar.current) * elapsed_time)
-        if time_remaining < 60:
-            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
-        elif 3600 > time_remaining > 60:
-            time_remaining = round(time_remaining / 60)
-            self.progress_label.config(text=f'Estimated TIme Remaining: {time_remaining} minutes')
-        elif time_remaining > 3600:
-            time_remaining = dt.timedelta(seconds=time_remaining)
-            self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining}')
+
+        # Disabled for Demo due to confusion
+        # if time_remaining < 60:
+        #     self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
+        # elif 3600 > time_remaining > 60:
+        #     time_remaining = round(time_remaining / 60)
+        #     self.progress_label.config(text=f'Estimated TIme Remaining: {time_remaining} minutes')
+        # elif time_remaining > 3600:
+        #     time_remaining = dt.timedelta(seconds=time_remaining)
+        #     self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining}')
 
 
 class TextRedirector(object):

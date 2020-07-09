@@ -177,8 +177,10 @@ class Illustration:
             for future in as_completed(message):
                 messages = future.result()
                 for out in messages:
-                    progressbar.add_current(increment)
+                    # Demo only commented
+                    # progressbar.add_current(increment)
                     print(out)
+        progressbar.add_current(1)
         # pool = Pool(self.processes)
         # pool.map(multiscan, pns)
 
