@@ -396,6 +396,7 @@ class CCL:
 
         :param technical_string: text extracted from technical data column
         waleed was here
+        Steven Was here
         :return: a cleaned technical string stripped of illustration data
         """
         # Regex expression to accommodate as much variation and user input variation as possible
