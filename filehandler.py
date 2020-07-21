@@ -1,6 +1,15 @@
+"""Filehandler module
+
+Date: 2020/07/21
+Rev: A
+Author: Steven Fu
+Last Edit: Steven Fu
+"""
+
 import io
 import re
 import os
+import gc
 from zipfile import ZipFile
 from shutil import copyfile, rmtree, copytree
 
@@ -22,57 +31,90 @@ import pdf2image
 from selenium.common.exceptions import SessionNotCreatedException
 
 
-def pdf_to_text_miner(path):
+def pdf_to_text_miner(path: str):
+    """Uses PDF miner to extract text form PDF
+
+    :param path: Path of the pdf file
+    :return: A large string containing all found text
+    """
     pdf_manager = PDFResourceManager()
+    # Uses StringIO to save converted PDF to RAM
     with io.StringIO() as temp_file:
         with TextConverter(pdf_manager, temp_file, laparams=LAParams()) as converter:
             interpreter = PDFPageInterpreter(pdf_manager, converter)
-
             with open(path, 'rb') as read:
                 for page in PDFPage.get_pages(read):
                     interpreter.process_page(page)
-
         return temp_file.getvalue()
 
 
-def pdf_to_text_tess(path, tesseract_path, resolution=250):
+def pdf_to_text_tess(path: str, tesseract_path: str, resolution: int = 250):
+    """Uses Google Tesseract OCR to extract text from PDF
+
+    First converts the pdf to a png then uses Tesseract to extract text.
+    Image conversion is done using popper.
+
+    :param path: path to the pdf
+    :param tesseract_path: path to the folder where Google tesseract is stored
+    :param resolution: Resolution of the converted image (DPI)
+    :return: A large string containing all found text
+    """
     # Set tesseract path
     pt.pytesseract.tesseract_cmd = tesseract_path
+    # Set popper path, probably should be made a parameter
     poppler = 'Poppler\\bin'
-
     # Read pdf as image
     pages = pdf2image.convert_from_path(path, dpi=resolution, grayscale=True, poppler_path=poppler)
-
     # Extract text using Google's tesseract
     text = [pt.image_to_string(page, lang='eng') for page in pages]
-
+    # Clean up memory
     del pages
+    gc.collect()
     return ' '.join(text)
 
 
-def schematic_match(string):
+def schematic_match(string: str):
+    """Regex match for schematics
+
+    All schematics will contain the work SCHEM* and SCIEX
+    :return: True if found word SCHEM* and SCIEX
+    """
     sciex = re.findall(r'Sciex', string, re.IGNORECASE)
     schem = re.findall(r'SCHEM\*', string)
     return True if sciex and schem else False
 
 
-def assembly_match(string):
+def assembly_match(string: str):
+    """Regex match for assembly
+
+    All assemblies will contain the word SCEIX, not contain the word SCHEM*
+    and will contain "projection", "scale", and "part description"
+
+    :return: True if regex match false if not
+    """
     sciex = re.findall(r'Sciex', string, re.IGNORECASE)
     schem = re.findall(r'SCHEM\*', string)
     # Projection seems to be to hard find since the word is too long
     projection = re.findall(r'projection', string, re.IGNORECASE)
     scale = re.findall(r'scale', string, re.IGNORECASE)
     desc = re.findall(r'PART DESCRIPTION', string, re.IGNORECASE)
+    # Uses or for scale, projection and desc because ocr and miner is not 100% accurate
+    # If one is found, its accurate enought to be deemed a match
     return True if sciex and (scale or projection or desc) and not schem else False
 
 
-def identify(path):
-    """Identify the type of file the pdf is (sch, assy or neither)"""
+def identify(path: str):
+    """Identify the type of file the pdf is (sch, assy or neither)
 
+    :param path: path of the pdf document
+    :return: Sch if pdf is schematic, Assy if pdf is assembly and none of none
+    """
     tesseract_path = 'Tesseract-OCR\\tesseract.exe'
+    # Miner tends to fail often due to large variation in PDF formats
     try:
         text = pdf_to_text_miner(path)
         # Added an additional check to see if no text was picked up by the miner
+        # 500 char threshold to make sure enough text was found
         if len(text) < 500:
             raise Exception
         elif schematic_match(text):
@@ -81,6 +123,7 @@ def identify(path):
             return 'Assy'
         else:
             return None
+    # If exception is raised or threshold not met, OCR will be used instead
     except Exception as e:
         text = pdf_to_text_tess(path, tesseract_path)
         if schematic_match(text):
@@ -92,8 +135,18 @@ def identify(path):
 
 
 class Illustration:
+    """Illustration identification and file manager
 
-    def __init__(self, ccl, save_dir, processes=1):
+    Attributes:
+        ccl (path, str): path to the word document CCL
+        processes (int): Class uses multiprocessing, this determines number of workers
+        save_dir (path,str): Where to save the identified illustrations
+        filtered (dataframe): Filtered ccl, can be left as None
+        scan_dir (path, str): Where documents to be scanned are saved (in format refereced in get_illustrations)
+                              This path is used in conjuncture with DocumentCollector when downloading.
+        ccl_dir (path, str): where the documents to be scanned are saved (in format of CSA submission package)
+    """
+    def __init__(self, ccl: str, save_dir: str, processes: int = 1):
         self.ccl = ccl
         # self.document = Document(ccl)
         # self.table = self.document.tables[0]
@@ -104,9 +157,15 @@ class Illustration:
         self.ccl_dir = None
 
     def get_filtered(self):
+        """Converts word CCL to filtered"""
+
         self.filtered = Parser(self.ccl).filter()
 
-    def _multi_identify_scan(self, pn):
+    def _multi_identify_scan(self, pn: str):
+        """Scans the scandir directory for illustrations
+
+        Named _multi_identify due to being main method called by threadpoolexecutor.
+        """
         if self.scan_dir is None:
             raise FileNotFoundError('Scan directory is not given')
         output_message = []
