@@ -1,3 +1,11 @@
+"""Compare Module for BOM Comparisons
+
+Date: 2020-7-23
+Rev: A
+Author: Steven Fu
+Last Edit: Steven Fu
+"""
+
 from collections import Counter
 
 import pandas as pd
