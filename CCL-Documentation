@@ -1,0 +1,132 @@
+CCL Tool Python Documentation:
+Compiled from all .py files within the virtual environment folder
+CCL (entire class) + GUI.py + Enovia.py  have higher priority
+compare.py is important in the sense that it is logic heavy(recursion..), lots of bug fixing
+illustration collector/ document collector almost identical in how they function tied to enovia (only doc collector) arent as imp. + package.py understand all
+
+
+
+
+Any function with an underscore in front is a private function
+
+Refer to 'DocumentCollector' if anything breaks regarding document collection...
+
+ccl.py functions/methods:
+
+
+
+ MAIN TARGET: CCL Class
+
+ - ties all modules together into one easily callable class.
+    GUI then calls on class to perform all functions.
+
+    Attributes:
+        ccl_docx (str): OS path to the ccl word document in string format
+
+        filtered (pandas dataframe): A dataframe is filtered in terms of the required information from the CCL word document and
+        is placed in a dataframe...
+
+        avl_bom (dataframe): dataframe of the avl bom
+
+        avl_bom_path (str): OS path to the AVl Bom file  in string format
+
+        avl_bom_updated (dataframe): dataframe of an updated avl bom
+
+        avl_bom_updated_path (str): path to the updated avl bom in string format
+
+        path_illustration (str): path to the illustration folder in string format (created already or being created)
+
+        path_ccl_data (str): path to the CCL documents folder in string format (created already or being created)
+
+        path_checks (str): paths to check before downloading form enovia in string fromat. Has to follow the CSA submission format.
+
+        username (str): Enovia username in string format
+
+        password (str): Enovia password in string format
+
+ set_bom_compare = intializes 'bom' variables. reads from both old and new avl multilevel bom
+
+ read_avl = reads CSV file. skiprow identifies what the header row by recursion. how many rows make the csv file valid hence error if exceed skipping row limit
+ catches error by try and except statements in python.
+
+ avl_path_to_df = avl csv file is read in as a dataframe
+
+ bom_compare = compares both avl multilevel bom. This method introduces Tracker() as variables
+  tracker and tracker_reversed holding information on removed and updated parts, as well as, added parts. For both variables a new bom object
+  is created in the process as the rearrange modified one of the objects. Mainly called rerrange Calling the compare, c
+
+ _get_bom_obj = private function, retreives bom objects through the combination of tree file with parent. The updated bom is
+ placed on an updated tree.
+
+ save_compare: once BOM comparison is performed it is outputted to a updated format. ***
+
+ update_ccl: checks to see if ccl document path is not null or else raises error  if none is returned. Performs bom comparison through
+ tracker. Once the comparison is finished the CCL is updated and its new path is saved.
+
+ _updates_only: only updates CCL using CCLEdit object (essential for ccl docx editing) which helps in updating from previous formatting
+ in each field.
+
+ _update_pn: updates column 1 part number by setting the updated...
+
+ _update_desc_fn: updates ccl docx by setting the ccl docx to the specified updated avl bom  description and findnumber from df
+
+ _update_manufacturer: updates manufacturer
+
+ _update_model: updates model field in CCL
+
+ _match_conditions: highlight / format the changed row based on certain values and change its color.
+
+ _removed_only: Similar to update only
+
+ collect_documents: the CCL Document collector implemented firstly verifying if any info is missing by raising value error
+ then calls on document collector method.
+
+ collect_illustrations: illustration collector similar format to document collector.
+
+ insert_illustration_data: illustration data is inserted into CCL according illustration folder and will overwrite any exisiting
+ data in CCL. The CCLEdit class edits the CCL .
+
+ new_illustration_data: Tehnical data is formatted to illustration data into column. This is done by searching for the illustration data info
+
+
+ remove_illustration_data: Removes any illustration data/ reference from technical column
+
+ insert_illustration: Inserts an illustration and updates the CCL with the new illustration
+
+ delete_illustration: Deletes an illustration and updates the CCL with the new illustration
+
+
+ MAIN CLASS: ENOVIA Class
+
+  - "Main enovia api, complete with multithreading/ multiprocessing"
+
+     def close(self): closes browser. Closes Selenium instance
+
+    def create_env(self): creates environment to start web browser and login. Sets the special arugments for chrome.
+
+    def reset(self): reset to enovia loading screen. Reloads the web page and checks if everything is loaded properly.
+
+    def search(self, value: str): searches for the value inputted after clearing the searchbar of any text/characters
+
+
+    def open_last_result(self): opens the last result of the list  through Xpath search
+
+
+    def open_latest_state(self, state): This function opens the file with the latest state in search.
+     In this case, latest steate is the last update
+
+
+    def download_specification_files(self, path): Through Xpath search, downloads specified files
+
+
+    def _wait(self, expected_condition):  buffer for expected condition
+
+
+    def _enable_download_headless(self, download_dir): headless download???
+
+
+    def wait_until_downloaded(self, download_path): This method functions as a timer/buffer for the download to be completed before
+    continuing with the program. checks path with crdownload to verify if the file is done donwloading if it gets stuck in the process it
+    makes an exception which will dealt with later on in the program.
+
+        def is_finished(path):

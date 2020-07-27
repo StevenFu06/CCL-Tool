@@ -179,6 +179,8 @@ class Root(tk.Tk):
         self.cpu_entry.bind('<FocusOut>', self._cpu_usage)
         percent = ttk.Label(cpuframe, text='%')
         percent.pack(side='left')
+        my_Bttn = ModernButton(self.settingsframe, text="Help", command=lambda: os.system('start WI-1670-X_Use_of_CCL_Tool.docx'))
+        my_Bttn.pack(pady=5, anchor='w')
 
     def _cpu_usage(self, e):
         cores = os.cpu_count()
