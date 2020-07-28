@@ -16,6 +16,15 @@ from copy import deepcopy
 import progressbar
 
 class Bom:
+    """BOM Object that contains level data and part data
+
+    Attributes:
+        bom (dataframe): the avl multilevel bom
+        parent (dict): - Containing nested keys to show level information
+                       - In the format of [Index, Part number]
+        parent_list (list): parent attribute but as a list for easy iter
+        top_pn (list): Part numbers at highest level
+    """
 
     def __init__(self, avl_bom, parent):
         self.bom = avl_bom
@@ -24,7 +33,7 @@ class Bom:
         self.top_pn = [Bom._split_key(pn)[1] for pn in self.parent]
 
     def __sub__(self, other_bom):
-        """Subtrself.parent_listct between self.parent_listnother bom Object
+        """Sub self.parent_list between self.parent_list another bom Object
 
         Only works on the highest level of parent
 
@@ -43,9 +52,11 @@ class Bom:
         return int(key.split()[0]), key.split()[1]
 
     def intersect(self, other_bom):
-        """Find the interesection between two BOM
+        """Find the intersection between two BOM
 
-        Only finds the highets level intersects and returns the index and pn of current instance (self)
+        Only finds the highest level intersects and returns the index and pn of current instance (self)
+
+        :return: the index and pn of current instance (self) that are in common with another instance of BOM
         """
         intersect_list = list((Counter(self.top_pn) & Counter(other_bom.top_pn)).elements())
         copy_top = self.top_pn.copy()
@@ -57,7 +68,9 @@ class Bom:
             output.append(Bom._split_key(copy_parent.pop(index)))
         return sorted(output, key=lambda output: output[1])
 
-    def immediate_parent(self, index):
+    def immediate_parent(self, index: int):
+        """Finds the immediate parent of given index number"""
+
         parent_level = self.bom.loc[index, 'Level'] - 1
         for idx in range(index, -1, -1):
             if self.bom.loc[idx, 'Level'] == parent_level:
@@ -66,6 +79,18 @@ class Bom:
 
     @staticmethod
     def zip_intersect(bom_old, bom_new):
+        """Intersection of two boms and return the common keys of both
+
+        Will perform an intersection between two boms and return a list in the format of:
+        [[[old key, old part number], [new key, new part number]],
+        [[old key, old part number], [new key, new part number]].
+        etc...]
+
+        :param bom_old: The old bom, it is a bom object
+        :param bom_new: The new bom, it is a bom object
+
+        :return: list in format mentioned above. Only contains intersection (common) items between the two boms
+        """
         a = list(bom_old.parent)
         b = list(bom_new.parent)
         pa = [pn.split()[1] for pn in a]

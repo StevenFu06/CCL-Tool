@@ -325,7 +325,7 @@ class BomCompare(tk.Frame):
         self.save_entry = ModernEntry(self.saveframe)
         self.save_entry.pack(side='right', fill='both', expand=True, anchor='center')
 
-        self.back_button = ModernButton(self, text='Back', width=20, command=lambda: self.root.back(BomCompare))
+        self.back_button = ModernButton(self, text='Back', width=20, command=self.back)
         self.back_button.pack(pady=5)
 
     def oldsave(self):
@@ -344,7 +344,6 @@ class BomCompare(tk.Frame):
         self.new_entry.clear()
         self.new_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.bom_compare_new = filename
 
     def zipsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
@@ -354,7 +353,11 @@ class BomCompare(tk.Frame):
         self.save_entry.clear()
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.bom_compare_save = filename
+
+    def back(self):
+        self.root.bom_compare_save = self.save_entry.get()
+        self.root.bom_compare_new = self.new_entry.get()
+        self.root.back(BomCompare)
 
 
 class UpdateCCL(tk.Frame):
