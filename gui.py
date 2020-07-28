@@ -179,6 +179,10 @@ class Root(tk.Tk):
         self.cpu_entry.bind('<FocusOut>', self._cpu_usage)
         percent = ttk.Label(cpuframe, text='%')
         percent.pack(side='left')
+        my_button = ModernButton(self.settingsframe,
+                                 text="Help",
+                                 command=lambda: os.system('start WI-1670-X_Use_of_CCL_Tool.docx'))
+        my_button.pack(pady=5, anchor='w')
 
     def _cpu_usage(self, e):
         cores = os.cpu_count()
@@ -1244,6 +1248,7 @@ class InsertDelIllustration(tk.Frame):
         else:
             messagebox.showerror(title='Error',
                                  message='Illustration number not detected, please check file name')
+
 
 class ModernEntry(tk.Frame):
     BACKGROUND = '#CCCCCC'
