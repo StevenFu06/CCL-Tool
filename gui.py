@@ -339,7 +339,7 @@ class BomCompare(tk.Frame):
         self.old_entry.clear()
         self.old_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.bom_compare_old = filename
+
 
     def newsave(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
@@ -359,8 +359,10 @@ class BomCompare(tk.Frame):
         self.root.cache_dir = filename
 
     def back(self):
+        self.root.bom_compare_old = self.old_entry.get()
         self.root.bom_compare_save = self.save_entry.get()
         self.root.bom_compare_new = self.new_entry.get()
+
         self.root.back(BomCompare)
 
 
@@ -411,7 +413,7 @@ class UpdateCCL(tk.Frame):
         self.save_entry = ModernEntry(self.saveframe)
         self.save_entry.pack(side='right', fill='both', expand=True, anchor='center')
 
-        self.back_button = ModernButton(self, text='Back', width=20, command=lambda: self.root.back(UpdateCCL))
+        self.back_button = ModernButton(self, text='Back', width=20, command= self.back)
         self.back_button.pack(pady=5)
 
     def oldsave(self):
@@ -421,7 +423,7 @@ class UpdateCCL(tk.Frame):
         self.old_entry.clear()
         self.old_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ccl_update_old = filename
+
 
     def newsave(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
@@ -430,7 +432,7 @@ class UpdateCCL(tk.Frame):
         self.new_entry.clear()
         self.new_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ccl_update_new = filename
+
 
     def ccl_open(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
@@ -439,7 +441,7 @@ class UpdateCCL(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ccl_update_loc = filename.name
+
 
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
@@ -449,7 +451,15 @@ class UpdateCCL(tk.Frame):
         self.save_entry.clear()
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.ccl_update_save_loc = filename
+
+
+    def back(self):
+        self.root.ccl_update_old = self.old_entry.get()
+        self.root.ccl_update_new = self.new_entry.get()
+        self.root.ccl_update_loc = self.ccl_entry.get()
+        self.root.ccl_update_save_loc = self.save_entry.get()
+
+        self.root.back(UpdateCCL)
 
     def sharedvar(self, e):
         if self.root.shared.get() and self.root.ccl_update_old is None:
@@ -509,7 +519,7 @@ class DocumentCollector(tk.Frame):
 
         self.path_checks()
         self.back_button = ModernButton(self, text='Back', width=20,
-                                        command=lambda: self.root.back(DocumentCollector))
+                                        command=self.back)
         self.back_button.pack(pady=5)
 
     def clear_user(self, e):
@@ -528,7 +538,7 @@ class DocumentCollector(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.docs_ccl = filename.name
+
 
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
@@ -536,7 +546,14 @@ class DocumentCollector(tk.Frame):
         self.save_entry.clear()
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.docs_savedir = filename
+
+
+    def back(self):
+        self.root.docs_ccl = self.ccl_entry.get()
+        self.root.docs_savedir = self.save_entry.get()
+
+
+        self.root.back(DocumentCollector)
 
     def path_checks(self):
         centerframe = tk.Frame(self, background='white')
@@ -685,7 +702,7 @@ class Illustrations(tk.Frame):
         self.illsave_entry = ModernEntry(self.illsave_frame)
         self.illsave_entry.pack(side='right', fill='both', expand=True, anchor='center')
 
-        self.back_button = ModernButton(self, text='Back', width=20, command=lambda: self.root.back(Illustrations))
+        self.back_button = ModernButton(self, text='Back', width=20, command=self.back)
         self.back_button.pack(pady=5)
 
     def ccl_open(self):
@@ -695,7 +712,7 @@ class Illustrations(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-        self.root.ill_ccl = filename.name
+
 
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
@@ -705,7 +722,7 @@ class Illustrations(tk.Frame):
         self.save_entry.clear()
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.ill_cclsave = filename
+
 
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
@@ -713,7 +730,7 @@ class Illustrations(tk.Frame):
         self.save_entry_doc.clear()
         self.save_entry_doc.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.ill_scan = filename
+
 
     def illsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
@@ -721,7 +738,16 @@ class Illustrations(tk.Frame):
         self.illsave_entry.clear()
         self.illsave_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
-        self.root.ill_save = filename
+
+
+    def back(self):
+        self.root.ill_ccl = self.ccl_entry.get()
+        self.root.ill_cclsave = self.save_entry.get()
+        self.root.ill_scan = self.save_entry_doc.get()
+        self.root.ill_save = self.illsave_entry.get()
+
+
+        self.root.back(Illustrations)
 
     def sharedvar(self, e):
         if self.root.shared.get() and self.root.ill_ccl is None and self.root.docs_ccl is not None:
@@ -807,7 +833,7 @@ class Run(tk.Toplevel):
     def run(self):
         if self.root.compare_select.get():
             print('Starting BOM Compare')
-            self.ccl.set_bom_compare(self.root.bom_compare_old.name, self.root.bom_compare_new.name)
+            self.ccl.set_bom_compare(self.root.bom_compare_old, self.root.bom_compare_new)
             self.ccl.save_compare(self.root.bom_compare_save)
             progressbar.add_current(1)
             print('BOM Compare finished')
@@ -815,7 +841,7 @@ class Run(tk.Toplevel):
         if self.root.update_select.get():
             print('Starting to update the CCL')
             self.ccl.ccl_docx = self.root.ccl_update_loc
-            self.ccl.set_bom_compare(self.root.ccl_update_old.name, self.root.ccl_update_new.name)
+            self.ccl.set_bom_compare(self.root.ccl_update_old, self.root.ccl_update_new)
             self.ccl.update_ccl(self.root.ccl_update_save_loc)
             print('CCL Has been updated and saved')
             progressbar.add_current(1)
