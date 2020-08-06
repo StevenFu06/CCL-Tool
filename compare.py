@@ -315,9 +315,16 @@ def Update(bom_old: Bom, bom_new: Bom, tracker: Tracker):
     return bom_old.parent
 
 
-def insert(obj: dict, key: int, new_key: int, new_value: str):
-    """Recursive inserts the new value into dictionary"""
+def insert(obj: dict, key: str, new_key: str, new_value: str):
+    """Recursive inserts the new value into dictionary
 
+    :param obj: Dictionary to be modified
+    :param key: old key location, new key will be inserted under this value
+    :param new_key: new key to be added
+    :param new_value: new value for the new key
+
+    :return: modified dictionary ith new key and new value inserted
+    """
     for k, v in obj.items():
         if v:
             obj[k] = insert(v, key, new_key, new_value)
@@ -326,7 +333,9 @@ def insert(obj: dict, key: int, new_key: int, new_value: str):
     return obj
 
 
-def pop(obj, key):
+def pop(obj: dict, key: str):
+    """Pops the key from the given dict with all values below it"""
+
     for key1, value in obj.items():
         if value:
             found = pop(value, key)
@@ -337,21 +346,42 @@ def pop(obj, key):
     return None
 
 
-def rearrange(obj, old_key, new_key):
+def rearrange(obj: dict, old_key: str, new_key: str):
+    """Rearranges the given dictionary
+
+    :param obj: the dictionary
+    :param old_key: old key where the children will be taken
+    :param new_key: new key where the children will be inserted
+    """
     branch = pop(obj, old_key)
     return insert(obj, new_key, old_key, branch)
 
 
-def Rearrange(bom_old, bom_new, tracker):
+def Rearrange(bom_old: Bom, bom_new: Bom, tracker: Tracker):
+    """Main method of compare.py. Basically calls Update multiple times.
+
+    Called Rearrange because every time an update is identified, the newly updated parts may be found
+    elsewhere in the BOM. If its found else where, Update will not recognize it as an update but rather
+    a not found part. Rearranging it will allow update to identify it as an update.
+
+    Parameter:
+        :param bom_old: Old bom as Bom obj
+        :param bom_new: New bom as Bom obj
+        :param tracker: Tracker obj to track recursion returns
+
+    :return: Nothing, will simply update the tracker object
+    """
+    # Using len -1 so to not trigger the not found condition right away
+    # Will keep running rearrange until the length of not_found list remains constant
+    # which signals that there are no more updates to be found
     prev_len_mia = -1
     while prev_len_mia != len(tracker.not_found):
-
+        # Previous length and rerun the Update function
         prev_len_mia = len(tracker.not_found)
         tracker.reset_not_found()
         Update(bom_old, bom_new, tracker)
-
+        # Rearranging the Bom
         for part in tracker.not_found:
-
             if part[1] in bom_new.bom['Name'].values:
                 try:
                     parent_new = bom_new.immediate_parent(
@@ -363,6 +393,7 @@ def Rearrange(bom_old, bom_new, tracker):
                         rearrange(bom_old.parent, f'{part[0]} {part[1]}', f'{parent_old_index} {parent_new[1]}')
                 except TypeError:
                     continue
+    # Displays output message for user
     for part in tracker.not_found:
         print(f'{part[1]} was not found')
 
