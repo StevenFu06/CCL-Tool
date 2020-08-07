@@ -109,11 +109,14 @@ ccl.py functions/methods:
     def search(self, value: str): searches for the value inputted after clearing the searchbar of any text/characters
 
 
-    def open_last_result(self): opens the last result of the list  through Xpath search
+    def open_last_result(self): opens the last result of the list  through Xpath search. Multiprocessing by Javascript click, since
+     normal clicks do not register every time.
 
 
     def open_latest_state(self, state): This function opens the file with the latest state in search.
-     In this case, latest steate is the last update
+     In this case, latest state is the last update. Multiprocessing by Javascript click, since
+     normal clicks do not register every time.
+
 
 
     def download_specification_files(self, path): Through Xpath search, downloads specified files
@@ -122,7 +125,8 @@ ccl.py functions/methods:
     def _wait(self, expected_condition):  buffer for expected condition
 
 
-    def _enable_download_headless(self, download_dir): headless download???
+    def _enable_download_headless(self, download_dir): headless download??? Downloads files without opening
+    Google/browser window to extract/collect.
 
 
     def wait_until_downloaded(self, download_path): This method functions as a timer/buffer for the download to be completed before
@@ -130,3 +134,289 @@ ccl.py functions/methods:
     makes an exception which will dealt with later on in the program.
 
         def is_finished(path):
+
+
+
+
+  MODULE: Filehandler
+  Incase a version error appears in trying to open CCLtoo.exe refer to this module and update version in last line.
+
+pdf_to_text_miner:
+    Text is extracted from a PDF using PDF miner. StringIO is used to save converted PDF to RAM.
+    Large string containing all found text is returned.
+
+
+
+pdf_to_text_tess:
+    Google Tesseract OCR is used to extract text from PDF. The PDF is converted to a png, first, then the text is
+    extracted using Tesseract. Image conversion is done using popper. Step by step, the tesseract path is set, first. Next,
+    the popper path is set popper path. Read pdf as image using the pdf2image library.
+    Text is then extracted esing Google tesseract. Lastly, memory is cleaned up before a large string containing all found text.
+
+
+
+schematic_match:
+    Regex is used for schematics match. A True/False statement is returned which is dependant on the output
+    (True if sciex and False if schem i returned)
+
+
+
+
+assembly_match:
+    Regex match is used for assembly. All assemblies will contain the word SCIEX, not contain the word SCHEM*
+    and will contain "projection", "scale", and "part description".Uses of these parameters is due to
+    ocr and miner not being 100% accurate.If one is found, its to be deemed a match.
+    True is returned if regex match false if not.
+
+
+
+identify:
+    Identify the type of file the pdf is (sch, assy or neither)
+   Miner tends to fail often due to large variation in PDF formats, a try method runs and an additional check is added
+   to see if no text was picked up by the miner. 500 char threshold to make sure enough text was found.
+   If exception is raised or threshold not met, OCR will be used instead
+
+
+
+class Illustration:
+    Illustration identification and file manager
+
+    Attributes:
+        ccl (path, str): path to the word document CCL
+        processes (int): Class uses multiprocessing, this determines number of workers
+        save_dir (path,str): Where to save the identified illustrations
+        filtered (dataframe): Filtered ccl, can be left as None
+        scan_dir (path, str): Where documents to be scanned are saved (in format refereced in get_illustrations)
+                              This path is used in conjuncture with DocumentCollector when downloading.
+        ccl_dir (path, str): where the documents to be scanned are saved (in format of CSA submission package)
+    """
+
+
+get_filtered:
+     Converts word CCL to filtered
+
+
+_multi_identify_scan:
+      private function that scans the scandir directory for illustrations. Raises File not found error is scan directory
+      is not found. Scandir refers to downloaded directory not the CCL CSA submission style directory.
+      Downloaded directory follows the heirarchy:
+        Part number
+                - Files
+                - Files
+                - Files
+
+
+
+_multi_identify_ccl:
+         private function that scans the cc_dir directory ofr illustrations. ccl_dir refers to a pre-existing CCL CSA submission style documents directory.
+         Checks file directory for pdf file to find part number.
+
+
+
+ get_illustrations:
+        Automatically scan folder for illustrations. Depending on input will either use scandir or ccl_dir style directory.
+        Step by step: The scanning method to use is identified. Then get filtered CCL if not given. Pandas dataframe uses numpy 64 floats which automatically add a .0
+        pns = [pn.replace('.0', '') for pn in self.filtered['pn'].astype(str)]. Reorder the illustrations into proper names.
+        Used and count is used to keep track of which numbers have been used already
+
+
+_rename(self, idx: int):
+        Functions to renumber and rename the illustrations in the folder. This function is only called by get_illustrations
+        I f part number is not in the used category appends to count. Get the new name of the file then converts to windows accepable name
+
+shift_up_ill(self, shift_from: int):
+       Shifts illustrations up starting from and including shift_from
+
+        Will also update the CCL. To be used in extra tools.
+
+
+
+shift_down_ill(self, shift_from: int):
+        Shifts illustrations numbers down starting from and including shift_from
+
+        Will also update the CCL. To be used in extra tools.
+
+
+
+class DocumentCollector:
+    DocumentCollector is used to collect documents
+
+    Will get documents from Enovia and other specified paths. Will then extract and rename the files.
+
+    Attributes:
+        username (str): Enovia username
+        password (str): Enovia Password
+        ccl (path/str): word document CCL
+        filtered (dataframe): filtered dataframe
+        save_dir (path/str): Save location of the collected documents
+        processes (int): number of processes to run in threadpool executor
+        failed (list): Part numbers that failed to collect
+        headless (bool): Headless mode True/ False for selenium
+        temp_dir (path): Temporary directory where the files are saved before rearranging
+        progress_val (int): Used with progress bar
+
+
+
+    def create_temp_dir(self):
+        Create temporary directory to save files
+        Will delete if already exists
+
+    def get_filtered(self):
+        Creates the filtered CCL if not given
+
+    def _multidownload(self, pn: str):
+        Multiprocess downloading. Enovia API is then used to serach for part number and download specification files.
+
+
+    def download(self, pns):
+        Download from enovia using multi download multiprocess
+
+        # For progress bar
+
+
+    def extract_all(self):
+        Extracts all the files into the main part folder removing any zip files
+
+        def vendor(string):
+         Regex check for vendor zip files
+
+
+        def progress_increment(temp_dir):
+          For Progress bar increments
+        Then all pdf is extracted. All documents aare scanned again to remove all sub folders and place into main.
+        Scan through sub dirs only. Special condition of vendor files, only extract the pdf
+                        # Vendor and archive files will remain in the folder
+                            # Clean up
+
+    @staticmethod
+    def _format_name(pn, desc, fn):
+        Formats name, removes .0 because pandas stores as int
+
+    def structure(self, path: str = None):
+        Turns temp structured into proper CCL strucutre. Runs a try and except statement to verify path of CCL structured folder.
+
+
+
+
+    @staticmethod
+    def _pn_exists(pn, dirs):
+        Check if part number exists in files
+
+
+    def _check_path_and_copy(self, pn: str, path: str, dest_folder: str):
+        Checks if the path contains a folder with pn and copy contents to destination folder
+
+
+
+    def _check_paths(self, pn, paths, dest_folder):
+        """Check paths to see if exists before copy to avoid file exists exception"""
+
+
+
+    def collect_documents(self, check_paths: list = None):
+        """Main function for this class, collect the documents for ccl. USing a try and except stement the temp_dir tree is deleted using
+        rmtree. A new temp_dir is created and cilter ccl is created if none is returned. Part numbers are converted
+         and formatted into a proper format.
+
+        param check_paths: paths to check before downloading off Enovia, index 0 gets highest priority
+        """
+
+
+    def clear_temp(self):
+        """Clear the temp folder after process is ran""" raises value error
+
+
+MODULE: Compare.py
+
+    class Bom:
+    BOM Object that contains level data and part data
+
+    Attributes:
+        bom (dataframe): the avl multilevel bom in dataframe
+        parent (dict): - Containing nested keys to show level information
+                       - In the format of [Index, Part number]
+        parent_list (list): parent attribute but as a list for easy iter
+        top_pn (list): Part numbers at highest level
+
+
+    def __sub__(self, other_bom):
+       Sub method enable subtraction. Sub self.parent_list between self.parent_list another bom Object
+        only works on the highest level of parent
+        Its paramters include other_bom: Another Bom object. It returns only the part numbers and index number (int)
+        that exists in this self instance
+
+
+    @staticmethod
+     _split_key():
+    Splits the key into index and part number both in (int)
+
+    intersect:
+     Finds the intersection  between two BOM
+
+        It finds the highest level intersects and returns the index and pn of current instance (self)
+
+        returns the index and pn of current instance (self) that are in common with another instance of BOM
+
+
+    immediate_parent:
+    Finds the immediate parent of given index number
+
+    @staticmethod
+    def zip_intersect(bom_old, bom_new):
+    
+class Tracker:
+
+    COLUMNS = ['old_idx', 'old_pn', 'new_idx', 'new_pn']
+
+
+    def append_full(self, part_old, part_new): new part and old part is concatenated to the columns of the dataframe.
+     Follows 3 match  conditions then appends to too full match dataframe.
+
+
+    def append_partial(self, part_old, part_new): new part and old part is concatenated to the columns of the dataframe.
+    Follows 2 match conditions and appends to partial match dataframe.
+
+
+    def append_find_only(self, part_old, part_new): new part and old part is concatenated to the columns of the dataframe.
+     Follows only find number match condition and appends to find only dataframe.
+
+
+    def not_found_to_df(self): Converts not found to a datatframe.
+
+
+    def isused(self, part): checks to see if part is found in used category
+
+
+    def reset_not_found(self): resets not found function
+
+    def combine_found(self): inserts new paramters into the parts columns and cobines them.Combines all match types into one and inserts match type column
+
+
+def ismatch(bom_old, part_old, bom_new, part_new, threshold_full=50, threshold_partial=80):
+Determines match type given a part and BOM. There are 3 types match types in total, 2 are determined in this method (full match, partial match)
+
+
+def update_part(bom_old, part_old, bom_new, exclusive_new, tracker): checks if new parts are linked weith any of the old
+or new boms and parts. Calls on tracker class to check if used. or selse
+
+def Update(bom_old, bom_new, tracker): Main updater class without rearrange
+All bom will be dealt with using the Bom class. This means the index and pn have been already split.
+In the form [index, part number]
+
+
+def insert(obj, key, new_key, new_value): sets variable in object items with the listed. if key is in ibject then it is cleared.
+
+
+
+def pop(obj, key): removes key if not found./"Pops the key from the given dict with all values below it
+
+
+
+def rearrange(obj, old_key, new_key):  clears and inserts new items listed/Rearranges the given dictionary
+
+
+
+def Rearrange(bom_old, bom_new, tracker): " Main method of compare.py. Basically calls Update multiple times
+
+
+progressbar.py + package.py
