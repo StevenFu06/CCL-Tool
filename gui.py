@@ -340,7 +340,6 @@ class BomCompare(tk.Frame):
         self.old_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
 
-
     def newsave(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select New AVL Multilevel BOM',
@@ -424,7 +423,6 @@ class UpdateCCL(tk.Frame):
         self.old_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
 
-
     def newsave(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select New AVL Multilevel BOM',
@@ -433,7 +431,6 @@ class UpdateCCL(tk.Frame):
         self.new_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
 
-
     def ccl_open(self):
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select CCL',
@@ -441,7 +438,6 @@ class UpdateCCL(tk.Frame):
         self.ccl_entry.clear()
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
-
 
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
@@ -452,13 +448,11 @@ class UpdateCCL(tk.Frame):
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
 
-
     def back(self):
         self.root.ccl_update_old = self.old_entry.get()
         self.root.ccl_update_new = self.new_entry.get()
         self.root.ccl_update_loc = self.ccl_entry.get()
         self.root.ccl_update_save_loc = self.save_entry.get()
-
         self.root.back(UpdateCCL)
 
     def sharedvar(self, e):
@@ -539,7 +533,6 @@ class DocumentCollector(tk.Frame):
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
 
-
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
@@ -547,12 +540,9 @@ class DocumentCollector(tk.Frame):
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
 
-
     def back(self):
         self.root.docs_ccl = self.ccl_entry.get()
         self.root.docs_savedir = self.save_entry.get()
-
-
         self.root.back(DocumentCollector)
 
     def path_checks(self):
@@ -580,8 +570,12 @@ class DocumentCollector(tk.Frame):
         self.set_check_paths()
 
     def del_path(self):
-        self.path_listbox.delete(self.path_listbox.curselection())
-        self.set_check_paths()
+        try:
+            self.path_listbox.delete(self.path_listbox.curselection())
+            self.set_check_paths()
+        except Exception as e:
+            print(e)
+            pass
 
     def move_up(self):
         selected = self.path_listbox.curselection()[0]
@@ -713,7 +707,6 @@ class Illustrations(tk.Frame):
         self.ccl_entry.insert(tk.END, filename.name)
         self.root.cache_dir = filename
 
-
     def cclsave(self):
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
                                                 title='Save As',
@@ -723,14 +716,12 @@ class Illustrations(tk.Frame):
         self.save_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
 
-
     def docsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
         self.save_entry_doc.clear()
         self.save_entry_doc.insert(tk.END, filename)
         self.root.cache_dir = filename
-
 
     def illsave(self):
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
@@ -739,14 +730,11 @@ class Illustrations(tk.Frame):
         self.illsave_entry.insert(tk.END, filename)
         self.root.cache_dir = filename
 
-
     def back(self):
         self.root.ill_ccl = self.ccl_entry.get()
         self.root.ill_cclsave = self.save_entry.get()
         self.root.ill_scan = self.save_entry_doc.get()
         self.root.ill_save = self.illsave_entry.get()
-
-
         self.root.back(Illustrations)
 
     def sharedvar(self, e):
