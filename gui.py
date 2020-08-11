@@ -1,3 +1,11 @@
+"""GUI module for program
+
+Date: 2020-08-11
+Revision: A
+Author: Steven Fu
+Last Edit: Steven Fu
+"""
+
 from tkinter import ttk
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -19,33 +27,44 @@ import os
 
 
 class Root(tk.Tk):
+    """Root window of the ui
+
+    Uses tkinter with custom written classes for better looking ui
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        # Icon for ccl tool, when CX freeze dont forget to include in folder
         self.iconbitmap('icons\\sciex.ico')
         self.title('CCL Tool')
         self._set_style()
+        # Background white is default througout the program
         self.config(background='white')
-
+        # Variable initiation
         self._set_ccl_var()
+        # Initiate notebook frame
         self._set_notebook()
-
+        # Frames initiation for ccl tools
         self.frames = {}
         for F in (BomCompare, UpdateCCL, DocumentCollector, Illustrations, ROHSCompare):
             frame = F(self, self.main_notebook)
             self.frames[F] = frame
-
+        # Frames initialtion for extra tools
         for F in (ROHSCompare, FilterCompare, InsertDelIllustration):
             frame = F(self, self.extra_notebook)
             self.frames[F] = frame
-
+        # Show the main frame (check box frames)
         self.main_options()
+        # Show extra frame (Extra tools notebook tab)
         self.extra_frame()
+        # Show settings frame (Settings notebook tab)
         self.settings_frame()
+        # Update to set the minsize of the window
         self.update()
         self.minsize(self.winfo_width(), self.winfo_height())
 
     def _set_style(self):
+        """Custom TTK styling"""
+
         self.style = ttk.Style()
         self.style.theme_create('MyStyle', parent='vista', settings={
             'TNotebook': {'configure': {'tabmargins': [2, 5, 2, 0],
@@ -67,6 +86,8 @@ class Root(tk.Tk):
         self.style.theme_use('MyStyle')
 
     def _set_notebook(self):
+        """Setting the notebook frame and tabs"""
+
         self.notebook = ttk.Notebook(self)
 
         self.main_notebook = tk.Frame(self.notebook, bg='white')
@@ -79,6 +100,8 @@ class Root(tk.Tk):
         self.notebook.pack(expand=True, fill='both')
 
     def _set_ccl_var(self):
+        """Set ccl variables"""
+
         self.compare_select = tk.BooleanVar()  # For Checkbox bom comparison
         self.update_select = tk.BooleanVar()  # For Checkbox ccl update
         self.docs_select = tk.BooleanVar()  # for checkbox document collection
@@ -111,9 +134,11 @@ class Root(tk.Tk):
         self.ill_scan = None  # Illustration scan location
 
     def main_options(self):
+        """Main options frame"""
+
         self.mainframe = tk.Frame(self.main_notebook, bg='white')
         self.mainframe.pack(anchor='center', expand=True, fill='y')
-
+        # Compare frame, label, checkbox and button
         frame_compare = tk.Frame(self.mainframe, bg='white')
         frame_compare.pack(fill='x', pady=10, expand=True)
         compare_check = CustomCheckButton(frame_compare, variable=self.compare_select)
@@ -122,7 +147,7 @@ class Root(tk.Tk):
                                           text_sub='Will generate a bill of materials comparison report',
                                           command=lambda: self.raiseframe(BomCompare))
         compare_button.pack(side='left', fill='x', expand=True)
-
+        # Update frame, label, checkbox and button
         frame_update = tk.Frame(self.mainframe, bg='white')
         frame_update.pack(fill='x', pady=10, expand=True)
         update_check = CustomCheckButton(frame_update, variable=self.update_select)
@@ -131,7 +156,7 @@ class Root(tk.Tk):
                                          text_sub='Will output an updated CCL',
                                          command=lambda: self.raiseframe(UpdateCCL))
         update_button.pack(side='left', fill='x', expand=True)
-
+        # Doc collector frame, label, checkbox and button
         frame_docs = tk.Frame(self.mainframe, bg='white')
         frame_docs.pack(fill='x', pady=10, expand=True)
         docs_check = CustomCheckButton(frame_docs, variable=self.docs_select)
@@ -140,7 +165,7 @@ class Root(tk.Tk):
                                        text_sub='Will collect all documents associated with CCL',
                                        command=lambda: self.raiseframe(DocumentCollector))
         docs_button.pack(side='left', fill='x', expand=True)
-
+        # Ill collector frame, label, checkbox and button
         frame_ills = tk.Frame(self.mainframe, bg='white')
         frame_ills.pack(fill='x', pady=10, expand=True)
         ills_check = CustomCheckButton(frame_ills, variable=self.ills_select)
@@ -154,21 +179,29 @@ class Root(tk.Tk):
         run_button.pack(expand=True, fill='x', pady=5)
 
     def settings_frame(self):
+        """Settings frame"""
+
         self.settingsframe = tk.Frame(self.settings_notebook, bg='white')
         self.settingsframe.pack(anchor='center', pady=10)
+        # Check button for shared input
         sharedprocess = ttk.Checkbutton(self.settingsframe,
                                         text='Share input between process',
                                         variable=self.shared)
-        sharedprocess.pack(expand=True, pady=5, anchor='w')
+        sharedprocess.pack(expand=True,pady=5, anchor='w')
+        # Check button for headless chrome
         headless = ttk.Checkbutton(self.settingsframe,
                                    text='Enable headless Chrome',
                                    variable=self.headless)
         headless.pack(expand=True, pady=5, anchor='w')
+        # Check button for incomplete fields
+        # Will surpress all error messages if checked, "press to run" to open run window
         incomplete = ttk.Checkbutton(self.settingsframe,
                                      text='Allow run with incomplete fields',
                                      variable=self.incomplete_run)
         incomplete.pack(expand=True, pady=5, anchor='w')
-
+        # CPU usage
+        # Will round to the nearest whole cpu core number
+        # Gets the number of cores using os
         cpuframe = tk.Frame(self.settingsframe, background='white')
         cpuframe.pack(pady=5)
         cpu_label = ttk.Label(cpuframe, text='Enter desired CPU usage (0 for default): ')
@@ -176,15 +209,19 @@ class Root(tk.Tk):
         self.cpu_entry = ttk.Entry(cpuframe, width=3)
         self.cpu_entry.insert(tk.END, 0)
         self.cpu_entry.pack(side='left')
+        # Submit the CPU usage the moment the textbox loses focus
         self.cpu_entry.bind('<FocusOut>', self._cpu_usage)
         percent = ttk.Label(cpuframe, text='%')
         percent.pack(side='left')
+        # Help button opens docx
         my_button = ModernButton(self.settingsframe,
                                  text="Help",
                                  command=lambda: os.system('start WI-1670-X_Use_of_CCL_Tool.docx'))
         my_button.pack(pady=5, anchor='w')
 
     def _cpu_usage(self, e):
+        """Gets the Cpu usage on CPU_entry lost focus"""
+
         cores = os.cpu_count()
         try:
             cpu_usage = int(self.cpu_entry.get())
@@ -202,9 +239,17 @@ class Root(tk.Tk):
         messagebox.showerror('Error', 'Invalid Input')
 
     def extra_frame(self):
+        """Extra frames (Extra tools tab)
+
+        Contains:
+            RoHS BOM comparison
+            Format Checker
+            Illustration Tool
+        """
+
         self.extraframe = tk.Frame(self.extra_notebook, bg='white')
         self.extraframe.pack(anchor='center', expand=True, fill='y')
-
+        # RoHS checker
         self.rohsframe = tk.Frame(self.extraframe, bg='#7093db')
         self.rohsframe.pack(pady=10, fill='x', expand=True)
         rohs = DoubleTextButton(self.rohsframe,
@@ -212,7 +257,7 @@ class Root(tk.Tk):
                                 text_sub='Output a delta report between two BOMS',
                                 command=lambda: self.raiseframe_extra(ROHSCompare))
         rohs.pack(fill='x', expand=True, side='right', padx=(4, 0))
-
+        # Format Checker
         self.filterframe = tk.Frame(self.extraframe, bg='#7093db')
         self.filterframe.pack(pady=10, fill='x', expand=True)
         filtercheck = DoubleTextButton(self.filterframe,
@@ -220,7 +265,7 @@ class Root(tk.Tk):
                                        text_sub='Will output filtered CCL to check CCL format',
                                        command=lambda: self.raiseframe_extra(FilterCompare))
         filtercheck.pack(fill='x', expand=True, side='right', padx=(4, 0))
-
+        # Illustration tool
         self.illtoolframe = tk.Frame(self.extraframe, bg='#7093db')
         self.illtoolframe.pack(pady=10, fill='x', expand=True)
         illustration_tool = DoubleTextButton(self.illtoolframe,
@@ -230,6 +275,8 @@ class Root(tk.Tk):
         illustration_tool.pack(fill='x', expand=True, side='right', padx=(4, 0))
 
     def raiseframe(self, name):
+        """Raise frame to be used by all frames"""
+
         self.mainframe.forget()
         frame = self.frames[name]
         frame.pack(expand=True, fill='both', padx=10)
@@ -237,10 +284,14 @@ class Root(tk.Tk):
         frame.event_generate('<<ShowFrame>>')
 
     def back(self, ontop):
+        """Return to the main frame"""
+
         self.frames[ontop].forget()
         self.mainframe.pack(anchor='center', expand=True, fill='y')
 
     def raiseframe_extra(self, name):
+        """Raise frame in extra tools"""
+
         self.extraframe.forget()
         frame = self.frames[name]
         frame.pack(expand=True, fill='both', padx=10)
@@ -248,17 +299,22 @@ class Root(tk.Tk):
         frame.event_generate('<<ShowFrame>>')
 
     def back_extra(self, ontop):
+        """Return to extra tools frame"""
+
         self.frames[ontop].forget()
         self.extraframe.pack(anchor='center', expand=True, fill='y')
 
     def run(self):
+        """Calls run class, but does incomplete fields checking"""
+
         bom_compare = [self.bom_compare_old, self.bom_compare_new, self.bom_compare_save]
         ccl_update = [self.ccl_update_old, self.ccl_update_new, self.ccl_update_loc, self.ccl_update_save_loc]
         document = [self.docs_ccl, self.docs_paths, self.docs_savedir, self.docs_user, self.docs_pass]
         illustration = [self.ill_ccl, self.ill_cclsave, self.ill_save, self.ill_scan]
         full = True
+        # Incomplete fields check
+        # This check can be disabled using "allow run with incomplete fields"
         if not self.incomplete_run.get():
-
             if self.compare_select.get():
                 for i in bom_compare:
                     if i is None:
@@ -289,16 +345,28 @@ class Root(tk.Tk):
                         break
         if full and (self.compare_select.get() or self.update_select.get() or
                      self.docs_select.get() or self.ills_select.get()):
+            # Calls run
+            # Side note, could potentially add a daemon thread checker
+            # this will then allow the program to be quit without any memory problems
             Run(self)
 
 
 class BomCompare(tk.Frame):
+    """BOM Compare frame
 
+    Performs a bom comparison and outputs a zip file with 3 csv files:
+    changed, removed, added
+
+    Contains fields:
+        Browse for old BOM (Button and entry label)
+        Browse for new BOM (Button and entry label)
+        Browse For Save Location (Button and entry label)
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
         self['background'] = self.master['background']
-
+        # OLD BOM input
         self.oldframe = tk.Frame(self, background=self.master['background'])
         self.oldframe.pack(expand=True, fill='x', pady=5)
         self.old_button = ModernButton(self.oldframe,
@@ -308,7 +376,7 @@ class BomCompare(tk.Frame):
         self.old_button.pack(side='left', anchor='center', padx=(0, 2))
         self.old_entry = ModernEntry(self.oldframe)
         self.old_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # New bom input
         self.newframe = tk.Frame(self, background=self.master['background'])
         self.newframe.pack(expand=True, fill='x', pady=5)
         self.new_button = ModernButton(self.newframe,
@@ -318,7 +386,7 @@ class BomCompare(tk.Frame):
         self.new_button.pack(side='left', anchor='center', padx=(0, 2))
         self.new_entry = ModernEntry(self.newframe)
         self.new_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # Save location of the report input
         self.saveframe = tk.Frame(self, background=self.master['background'])
         self.saveframe.pack(expand=True, fill='x', pady=5)
         self.save_button = ModernButton(self.saveframe,
@@ -333,6 +401,8 @@ class BomCompare(tk.Frame):
         self.back_button.pack(pady=5)
 
     def oldsave(self):
+        """Browse for old bom"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select Old AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -341,6 +411,8 @@ class BomCompare(tk.Frame):
         self.root.cache_dir = filename
 
     def newsave(self):
+        """Browse for new bom"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select New AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -349,6 +421,8 @@ class BomCompare(tk.Frame):
         self.root.cache_dir = filename
 
     def zipsave(self):
+        """Save the report as a zip file"""
+
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
                                                 title='Save As',
                                                 filetypes=[('Zip', '.zip')],
@@ -358,6 +432,8 @@ class BomCompare(tk.Frame):
         self.root.cache_dir = filename
 
     def back(self):
+        """Back button/ submit button for entries"""
+
         self.root.bom_compare_old = self.old_entry.get()
         self.root.bom_compare_save = self.save_entry.get()
         self.root.bom_compare_new = self.new_entry.get()
@@ -366,11 +442,21 @@ class BomCompare(tk.Frame):
 
 
 class UpdateCCL(tk.Frame):
+    """Update ccl frame
+
+    Performs BOM comaprison but instead of outputting zip it will write to the CCL.docx
+
+    Contains fields:
+        Browse for old BOM (Button and entry label)
+        Browse for new BOM (Button and entry label)
+        Browse for ccl location (Button and entry label)
+        Browse For Save Location (Button and entry label)
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
         self.bind('<<ShowFrame>>', self.sharedvar)
-
+        # Old bom inputs
         self['background'] = self.master['background']
         self.oldframe = tk.Frame(self, background=self.master['background'])
         self.oldframe.pack(expand='True', fill='x', pady=5)
@@ -381,7 +467,7 @@ class UpdateCCL(tk.Frame):
         self.old_button.pack(side='left', anchor='center', padx=(0, 2))
         self.old_entry = ModernEntry(self.oldframe)
         self.old_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # New bom inputs
         self.newframe = tk.Frame(self, background=self.master['background'])
         self.newframe.pack(expand='True', fill='x', pady=5)
         self.new_button = ModernButton(self.newframe,
@@ -391,7 +477,7 @@ class UpdateCCL(tk.Frame):
         self.new_button.pack(side='left', anchor='center', padx=(0, 2))
         self.new_entry = ModernEntry(self.newframe)
         self.new_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # CCL input
         self.cclframe = tk.Frame(self, background=self.master['background'])
         self.cclframe.pack(expand=True, fill='x', pady=5)
         self.ccl_button = ModernButton(self.cclframe,
@@ -401,7 +487,7 @@ class UpdateCCL(tk.Frame):
         self.ccl_button.pack(side='left', anchor='center', padx=(0, 2))
         self.ccl_entry = ModernEntry(self.cclframe)
         self.ccl_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # New ccl save location inputs
         self.saveframe = tk.Frame(self, background=self.master['background'])
         self.saveframe.pack(expand='True', fill='x', pady=5)
         self.save_button = ModernButton(self.saveframe,
@@ -416,6 +502,8 @@ class UpdateCCL(tk.Frame):
         self.back_button.pack(pady=5)
 
     def oldsave(self):
+        """Old bom browse"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select Old AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -424,6 +512,8 @@ class UpdateCCL(tk.Frame):
         self.root.cache_dir = filename
 
     def newsave(self):
+        """New bom browse"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select New AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -432,6 +522,8 @@ class UpdateCCL(tk.Frame):
         self.root.cache_dir = filename
 
     def ccl_open(self):
+        """CCL browse"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select CCL',
                                           filetypes=[('Word Document', '.docx')])
@@ -440,6 +532,8 @@ class UpdateCCL(tk.Frame):
         self.root.cache_dir = filename
 
     def cclsave(self):
+        """New CCL location"""
+
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
                                                 title='Save As',
                                                 filetypes=[('Word Document', '.docx')],
@@ -449,6 +543,8 @@ class UpdateCCL(tk.Frame):
         self.root.cache_dir = filename
 
     def back(self):
+        """Back/ submit button for entry"""
+
         self.root.ccl_update_old = self.old_entry.get()
         self.root.ccl_update_new = self.new_entry.get()
         self.root.ccl_update_loc = self.ccl_entry.get()
@@ -456,6 +552,8 @@ class UpdateCCL(tk.Frame):
         self.root.back(UpdateCCL)
 
     def sharedvar(self, e):
+        """Shared Variable for shared entry"""
+
         if self.root.shared.get() and self.root.ccl_update_old is None:
             try:
                 self.old_entry.insert(tk.END, self.root.bom_compare_old.name)
@@ -474,12 +572,22 @@ class UpdateCCL(tk.Frame):
 
 
 class DocumentCollector(tk.Frame):
+    """Document ccl frame
+
+    Collect documents using CCL, and save to the save location (after formatting)
+
+    Contains fields:
+        Browse for ccl location (Button and entry label)
+        Select Save Folder (Button and entry label)
+        Enovia user and password (Button and entry label)
+        Check paths entry (listbox, add, delete, move up, move down)
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
         self['background'] = self.master['background']
         self.bind('<<ShowFrame>>', self.sharedvar)
-
+        # CCL Input docx
         self.cclframe = tk.Frame(self, background=self.master['background'])
         self.cclframe.pack(expand=False, fill='x', pady=5)
         self.ccl_button = ModernButton(self.cclframe,
@@ -489,7 +597,7 @@ class DocumentCollector(tk.Frame):
         self.ccl_button.pack(side='left', anchor='center', padx=(0, 2))
         self.ccl_entry = ModernEntry(self.cclframe)
         self.ccl_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # Save location of the collect4d documents
         self.saveframe = tk.Frame(self, background=self.master['background'])
         self.saveframe.pack(expand=False, fill='x', pady=5)
         self.save_button = ModernButton(self.saveframe,
@@ -499,7 +607,7 @@ class DocumentCollector(tk.Frame):
         self.save_button.pack(side='left', anchor='center', padx=(0, 2))
         self.save_entry = ModernEntry(self.saveframe)
         self.save_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # Enovia username and password
         self.enoviaframe = tk.Frame(self, background=self.master['background'])
         self.enoviaframe.pack(expand=False, fill='x', pady=5)
         self.user = ModernEntry(self.enoviaframe, text='Enter Enovia Username')
@@ -508,6 +616,7 @@ class DocumentCollector(tk.Frame):
         self.password = ModernEntry(self.enoviaframe, text='Enter Enovia Password')
         self.password.label.bind("<Button-1>", self.clear_password)
         self.password.pack(expand=True, fill='both', side='left', padx=(0, 2))
+        # Will perform a mock login to confirm username and password
         self.login = ModernButton(self.enoviaframe, text='Login', width=9, command=self.start_thread)
         self.login.pack(side='right', fill='x')
 
@@ -517,15 +626,21 @@ class DocumentCollector(tk.Frame):
         self.back_button.pack(pady=5)
 
     def clear_user(self, e):
+        """Clear username on click"""
+
         if self.user.get() == 'Enter Enovia Username':
             self.user.clear()
 
     def clear_password(self, e):
+        """Clear password on click"""
+
         self.password.label.config(show='*')
         if self.password.get() == 'Enter Enovia Password':
             self.password.clear()
 
     def ccl_open(self):
+        """Browse for CCL"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select CCL',
                                           filetypes=[('Word Document', '.docx')])
@@ -534,6 +649,8 @@ class DocumentCollector(tk.Frame):
         self.root.cache_dir = filename
 
     def docsave(self):
+        """Browse for folder to save the document"""
+
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
         self.save_entry.clear()
@@ -541,20 +658,24 @@ class DocumentCollector(tk.Frame):
         self.root.cache_dir = filename
 
     def back(self):
+        """Back button and submit"""
+
         self.root.docs_ccl = self.ccl_entry.get()
         self.root.docs_savedir = self.save_entry.get()
         self.root.back(DocumentCollector)
 
     def path_checks(self):
+        """List box frame containing the add, delete, move up and down button."""
+
         centerframe = tk.Frame(self, background='white')
         centerframe.pack(expand=True, fill='both')
-
+        # Listbox with scoll bar
         self.path_listbox = tk.Listbox(centerframe, height=1)
         self.path_listbox.pack(side='left', fill='both', expand=True)
         scroll = tk.Scrollbar(centerframe, orient='vertical', command=self.path_listbox.yview)
         scroll.pack(side='left', fill='y')
         self.path_listbox.configure(yscrollcommand=scroll.set)
-
+        # Side buttons to arrage order of check
         addpath = ModernButton(centerframe, text='Add Path', command=self.add_path, width=9)
         addpath.pack(pady=5, padx=(5, 0))
         delpath = ModernButton(centerframe, text='Delete Path', command=self.del_path, width=9)
@@ -565,11 +686,15 @@ class DocumentCollector(tk.Frame):
         movedown.pack(pady=5, padx=(5, 0))
 
     def add_path(self):
+        """Add path called by add path button"""
+
         filename = filedialog.askdirectory(initialdir='/', title='Select Directory')
         self.path_listbox.insert(tk.END, filename)
         self.set_check_paths()
 
     def del_path(self):
+        """Ldetes path from the listbox"""
+
         try:
             self.path_listbox.delete(self.path_listbox.curselection())
             self.set_check_paths()
@@ -578,6 +703,8 @@ class DocumentCollector(tk.Frame):
             pass
 
     def move_up(self):
+        """Move path upwards in order"""
+
         selected = self.path_listbox.curselection()[0]
         text = self.path_listbox.get(selected)
         self.path_listbox.delete(selected)
@@ -586,6 +713,8 @@ class DocumentCollector(tk.Frame):
         self.set_check_paths()
 
     def move_down(self):
+        """Move path downwards in order"""
+
         selected = self.path_listbox.curselection()[0]
         text = self.path_listbox.get(selected)
         self.path_listbox.delete(selected)
@@ -594,12 +723,16 @@ class DocumentCollector(tk.Frame):
         self.set_check_paths()
 
     def set_check_paths(self):
+        """Set the check paths"""
+
         if self.path_listbox.size() > 0:
             self.root.docs_paths = [self.path_listbox.get(idx) for idx in range(self.path_listbox.size())]
         else:
             self.root.docs_paths = []
 
     def sharedvar(self, e):
+        """Shared variable"""
+
         if self.root.shared.get() and self.root.docs_ccl is None:
             try:
                 self.ccl_entry.insert(tk.END, self.root.ccl_update_loc.name)
@@ -609,6 +742,8 @@ class DocumentCollector(tk.Frame):
                 self.root.docs_ccl = None
 
     def enoviacheck(self):
+        """Enovia mock login to check username, password and selenium"""
+
         enovia = Enovia(self.user.get(), self.password.get(), headless=self.root.headless.get())
         try:
             enovia.create_env()
@@ -624,8 +759,10 @@ class DocumentCollector(tk.Frame):
             messagebox.Message(title='Success', message='Login Successful')
 
     def start_thread(self):
-        self.thread = threading.Thread(target=self.enoviacheck)
+        """Threading for enovia check"""
 
+        self.thread = threading.Thread(target=self.enoviacheck)
+        # Pop up progress bar to shwo login status
         self.progressframe = tk.Toplevel(self, background='white')
         self.progressframe.lift()
         self.progressframe.focus_force()
@@ -637,12 +774,14 @@ class DocumentCollector(tk.Frame):
         progressbar.start(10)
         progresslabel = tk.Label(self.progressframe, text='Logging into Enovia', background='white')
         progresslabel.pack(pady=(0, 10))
-
+        # Thread setup
         self.thread.daemon = True
         self.thread.start()
         self.after(20, self.check_thread)
 
     def check_thread(self):
+        """Used by progress bar by checking if thread is still alive"""
+
         if self.thread.is_alive():
             self.after(20, self.check_thread)
         else:
@@ -650,12 +789,22 @@ class DocumentCollector(tk.Frame):
 
 
 class Illustrations(tk.Frame):
+    """Illustration collection frame
+
+    Collect illustration using CCL, and save to the save location (after formatting)
+
+    Contains fields:
+        Browse for CCL Location (Button and entry label)
+        New CCL Save Location (Button and entry label)
+        Document Scan Folder (Button and entry label)
+        Illustration Save (listbox, add, delete, move up, move down)
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
         self.bind('<<ShowFrame>>', self.sharedvar)
         self['background'] = self.master['background']
-
+        # CCL Save location input
         self.cclframe = tk.Frame(self, background=self.master['background'])
         self.cclframe.pack(expand=True, fill='x', pady=5)
         self.ccl_button = ModernButton(self.cclframe,
@@ -665,7 +814,7 @@ class Illustrations(tk.Frame):
         self.ccl_button.pack(side='left', anchor='center', padx=(0, 2))
         self.ccl_entry = ModernEntry(self.cclframe)
         self.ccl_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # MOdified Ccl browse label and button
         self.saveframe = tk.Frame(self, background=self.master['background'])
         self.saveframe.pack(expand='True', fill='x', pady=5)
         self.save_button = ModernButton(self.saveframe,
@@ -675,7 +824,7 @@ class Illustrations(tk.Frame):
         self.save_button.pack(side='left', anchor='center', padx=(0, 2))
         self.save_entry = ModernEntry(self.saveframe)
         self.save_entry.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # Folder to scan for illustrations
         self.saveframe_doc = tk.Frame(self, background=self.master['background'])
         self.saveframe_doc.pack(expand=True, fill='x', pady=5)
         self.save_button_doc = ModernButton(self.saveframe_doc,
@@ -685,7 +834,7 @@ class Illustrations(tk.Frame):
         self.save_button_doc.pack(side='left', anchor='center', padx=(0, 2))
         self.save_entry_doc = ModernEntry(self.saveframe_doc)
         self.save_entry_doc.pack(side='right', fill='both', expand=True, anchor='center')
-
+        # Place to save the identified illustrations
         self.illsave_frame = tk.Frame(self, background=self.master['background'])
         self.illsave_frame.pack(expand='True', fill='x', pady=5)
         self.illsave_button = ModernButton(self.illsave_frame,
@@ -700,6 +849,8 @@ class Illustrations(tk.Frame):
         self.back_button.pack(pady=5)
 
     def ccl_open(self):
+        """Browse for word CCL"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select CCL',
                                           filetypes=[('Word Document', '.docx')])
@@ -708,6 +859,8 @@ class Illustrations(tk.Frame):
         self.root.cache_dir = filename
 
     def cclsave(self):
+        """Browse for modified ccl save loc"""
+
         filename = filedialog.asksaveasfilename(initialdir=self.root.cache_dir,
                                                 title='Save As',
                                                 filetypes=[('Word Document', '.docx')],
@@ -717,6 +870,8 @@ class Illustrations(tk.Frame):
         self.root.cache_dir = filename
 
     def docsave(self):
+        """Browse for the scan folder/ directory"""
+
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
         self.save_entry_doc.clear()
@@ -724,6 +879,8 @@ class Illustrations(tk.Frame):
         self.root.cache_dir = filename
 
     def illsave(self):
+        """Browse for illustration save folder"""
+
         filename = filedialog.askdirectory(initialdir=self.root.cache_dir,
                                            title='Select Folder')
         self.illsave_entry.clear()
@@ -731,6 +888,8 @@ class Illustrations(tk.Frame):
         self.root.cache_dir = filename
 
     def back(self):
+        """Back/ submit button"""
+
         self.root.ill_ccl = self.ccl_entry.get()
         self.root.ill_cclsave = self.save_entry.get()
         self.root.ill_scan = self.save_entry_doc.get()
@@ -738,6 +897,8 @@ class Illustrations(tk.Frame):
         self.root.back(Illustrations)
 
     def sharedvar(self, e):
+        """Shared variable input"""
+
         if self.root.shared.get() and self.root.ill_ccl is None and self.root.docs_ccl is not None:
             try:
                 self.ccl_entry.insert(tk.END, self.root.docs_ccl.name)
@@ -772,6 +933,15 @@ class Illustrations(tk.Frame):
 
 
 class Run(tk.Toplevel):
+    """Main run method of CCL Tool
+
+    Calls the CCL.py method and runs in separate thread. Currently no thread control and threads
+    cannot be terminated from GUI. All consol messages after this point, including errors
+    will be rerouted into the built in consol.
+
+    Only way to completely terminate threads is by abort button. The abort button will completely
+    kill not only the run window but also the root window.
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
@@ -789,6 +959,8 @@ class Run(tk.Toplevel):
         self.minsize(self.winfo_width(), self.winfo_height())
 
     def controls(self):
+        """Bottom 3 buttons on the run window"""
+
         framecrtl = tk.Frame(self)
         framecrtl.pack()
 
@@ -802,6 +974,8 @@ class Run(tk.Toplevel):
         abort.pack(side='left', padx=5, pady=5)
 
     def prompt(self):
+        """Consol with progressbar"""
+
         promptframe = tk.Frame(self)
         promptframe.pack(expand=True, fill=tk.BOTH, padx=5)
 
@@ -819,13 +993,17 @@ class Run(tk.Toplevel):
         self.console.configure(yscrollcommand=scroll.set)
 
     def run(self):
+        """Calls ccl.py and inputs all required in ccl.py are inputted at this point"""
+
+        # Run bom compare if selected
         if self.root.compare_select.get():
             print('Starting BOM Compare')
             self.ccl.set_bom_compare(self.root.bom_compare_old, self.root.bom_compare_new)
             self.ccl.save_compare(self.root.bom_compare_save)
             progressbar.add_current(1)
             print('BOM Compare finished')
-
+        # Run CCL Update
+        # Note that ccl update is ran again even if already run once, could be room for improvement
         if self.root.update_select.get():
             print('Starting to update the CCL')
             self.ccl.ccl_docx = self.root.ccl_update_loc
@@ -833,7 +1011,7 @@ class Run(tk.Toplevel):
             self.ccl.update_ccl(self.root.ccl_update_save_loc)
             print('CCL Has been updated and saved')
             progressbar.add_current(1)
-
+        # Collect documents
         if self.root.docs_select.get():
             print('Collecting Documents')
             self.ccl.ccl_docx = self.root.docs_ccl
@@ -844,7 +1022,7 @@ class Run(tk.Toplevel):
             self.ccl.collect_documents(headless=self.root.headless.get())
             print('Documents have been successfully collected')
             # Progressbar progress will be updated in the filehandler module
-
+        # Collect documents
         if self.root.ills_select.get():
             print('Starting to Collect Illustrations')
             self.ccl.ccl_docx = self.root.ill_ccl
@@ -854,12 +1032,16 @@ class Run(tk.Toplevel):
             self.ccl.insert_illustration_data(self.root.ill_cclsave)
             print('Illustrations have been collected and CCL has been updated')
             # Progressbar progress will be updated in the CCL module
-
+        # Progress bar final update after all process has finished
         self.progressbar['value'] = progressbar.total
         self.progress_label.config(text='Done')
         print('FINISHED!')
 
     def total_progress(self):
+        """Sets the total progress depending on which selected
+
+        Progress bar will tick according to the total process set
+        """
         progressbar.reset()
         if self.root.compare_select.get():
             progressbar.add_total(1)
@@ -871,10 +1053,11 @@ class Run(tk.Toplevel):
             progressbar.add_total(1)
 
     def start_threading(self):
+        """Start the actual process of running ccl.py"""
+
         # For Demo only commented
         self.progress_label.config(text='Running...')
         # self.progress_label.config(text='Estimating Time Reamining')
-
         self.prev_prog = progressbar.current
         self.submit_thread = threading.Thread(target=self.run)
         self.start_time = time.time()
@@ -883,16 +1066,26 @@ class Run(tk.Toplevel):
         self.after(1000, self.check_thread)
 
     def check_thread(self):
+        """Checks if thread is alive,
+
+        Note that this doesnt come with thread killing, and will only check
+        every 1s. If thread kill to be implemented, lower the check timer and include
+        a parameter/ button here.
+        Eg. if kill == True: thread.kill and you would put that in this method.
+        """
         if self.submit_thread.is_alive():
             if self.prev_prog != progressbar.current:
                 self.time_remaining()
             self.after(1000, self.check_thread)
 
     def time_remaining(self):
+        """Time remaining calculation, and progressbar progress calculation
+
+        CUrrently commented out due to huge inaccuracies causing misinformation
+        """
         elapsed_time = time.time() - self.start_time
         self.progressbar['value'] = progressbar.current
         time_remaining = round((1 - progressbar.current) * elapsed_time)
-
         # Disabled for Demo due to confusion
         # if time_remaining < 60:
         #     self.progress_label.config(text=f'Estimated Time Remaining: {time_remaining} seconds')
@@ -905,6 +1098,8 @@ class Run(tk.Toplevel):
 
 
 class TextRedirector(object):
+    """Text redirector for consol to listbox"""
+
     def __init__(self, widget, tag="stdout"):
         self.widget = widget
         self.tag = tag
@@ -917,6 +1112,14 @@ class TextRedirector(object):
 
 
 class ROHSCompare(tk.Frame):
+    """Extra tools RoHS compare frame
+
+    RoHs compare code is self contained and all logic is within this class
+
+    Logic Attributes:
+        bom_a (str/ path): old bom string path
+        bom_b (str/ path): new bom string path
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -962,6 +1165,8 @@ class ROHSCompare(tk.Frame):
         self.back_button.pack(pady=5)
 
     def boma(self):
+        """Browse for Old bom"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -971,6 +1176,8 @@ class ROHSCompare(tk.Frame):
         self.bom_a = filename.name
 
     def bomb(self):
+        """Browse for new bom"""
+
         filename = filedialog.askopenfile(initialdir=self.root.cache_dir,
                                           title='Select AVL Multilevel BOM',
                                           filetypes=[('Comma-Separated Values', '.csv')])
@@ -980,15 +1187,17 @@ class ROHSCompare(tk.Frame):
         self.bom_b = filename.name
 
     def compare(self, a_avl, b_avl):
+        """Logic for bom comparison"""
+
+        # Read in the paths
         a_avl = self.read_avl(a_avl, 0)
         b_avl = self.read_avl(b_avl, 0)
-
         a_pns, b_pns = set(a_avl['Name']), set(b_avl['Name'])
         exclusive = {pn for pn in a_pns if pn not in b_pns}
         df_exclusive = pd.DataFrame()
         for pn in exclusive:
             df_exclusive = pd.concat([a_avl.loc[a_avl['Name'] == pn], df_exclusive])
-
+        # Styleframe to style the output pands dataframe
         sf = StyleFrame(a_avl)
         style = Styler(bg_color='yellow',
                        border_type=None,
@@ -1002,16 +1211,17 @@ class ROHSCompare(tk.Frame):
                                wrap_text=False,
                                font='Calibri',
                                font_size=11)
-
+        # Apply the style
         for idx in a_avl.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style_default)
-
         for idx in df_exclusive.index:
             sf.apply_style_by_indexes(sf.index[idx], styler_obj=style)
         self.save_as(sf)
 
     @staticmethod
     def read_avl(path, skiprow):
+        """Read avl method to figure out header row"""
+
         df = pd.read_csv(path, skiprows=skiprow)
         try:
             df['Name']
@@ -1032,6 +1242,8 @@ class ROHSCompare(tk.Frame):
         sf.to_excel(filename).save()
 
     def show_progressbar(self):
+        """Pop up progress bar"""
+
         self.progressframe = tk.Toplevel(self, background='white')
         self.progressframe.lift()
         self.progressframe.focus_force()
@@ -1045,6 +1257,8 @@ class ROHSCompare(tk.Frame):
         progresslabel.pack(pady=(0, 10))
 
     def start_threading(self, a_avl, b_avl):
+        """Compare progress is ran on a separate thread"""
+
         self.show_progressbar()
         self.submit_thread = threading.Thread(target=lambda: self.compare(a_avl, b_avl))
         self.submit_thread.daemon = True
@@ -1052,6 +1266,8 @@ class ROHSCompare(tk.Frame):
         self.after(20, self.check_thread)
 
     def check_thread(self):
+        """Confirm program hasnt crashed"""
+
         if self.submit_thread.is_alive():
             self.after(20, self.check_thread)
         else:
@@ -1059,6 +1275,10 @@ class ROHSCompare(tk.Frame):
 
 
 class FilterCompare(tk.Frame):
+    """Filter comapre frame, format checker frame
+
+    Format checker will confirm
+    """
     def __init__(self, root, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
