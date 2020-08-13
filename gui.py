@@ -611,12 +611,12 @@ class DocumentCollector(tk.Frame):
         self.enoviaframe = tk.Frame(self, background=self.master['background'])
         self.enoviaframe.pack(expand=False, fill='x', pady=5)
         self.user = ModernEntry(self.enoviaframe, text='Enter Enovia Username')
-        self.user.label.bind("<Button-1>", self.clear_user)
+        self.user.label.bind("<FocusIn>", self.clear_user)
         self.user.pack(expand=True, fill='both', side='left', padx=(0, 2))
         self.password = ModernEntry(self.enoviaframe, text='Enter Enovia Password')
-        self.password.label.bind("<Button-1>", self.clear_password)
+        self.password.bind("<FocusIn>", self.clear_password)
         self.password.pack(expand=True, fill='both', side='left', padx=(0, 2))
-        # Will perform a mock login to confirm username and password
+         #Will perform a mock login to confirm username and password
         self.login = ModernButton(self.enoviaframe, text='Login', width=9, command=self.start_thread)
         self.login.pack(side='right', fill='x')
 
@@ -630,6 +630,7 @@ class DocumentCollector(tk.Frame):
 
         if self.user.get() == 'Enter Enovia Username':
             self.user.clear()
+
 
     def clear_password(self, e):
         """Clear password on click"""

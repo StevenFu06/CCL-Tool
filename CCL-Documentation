@@ -399,9 +399,13 @@ Determines match type given a part and BOM. There are 3 types match types in tot
 def update_part(bom_old, part_old, bom_new, exclusive_new, tracker): checks if new parts are linked weith any of the old
 or new boms and parts. Calls on tracker class to check if used. or selse
 
-def Update(bom_old, bom_new, tracker): Main updater class without rearrange
-All bom will be dealt with using the Bom class. This means the index and pn have been already split.
-In the form [index, part number]
+def Update(bom_old, bom_new, tracker):
+Main updater class without rearrange. Recursively scans a single level through the BOM only comparing parent and child parts,
+not entire BOM and not child of child. After determining updates, will update the tracker class. All bom will be dealt with using the Bom class.
+Step by step: Lists created for easy iteration. Then it checks to see if only find number has been changed and for matching part numbers, disregarding find number.
+A deep copy for manipulation is created.  Any errors occur means part was not found and needs review. Finds intersection aka parts that have not been changed in the newer revision.
+Run through old parts in exclusive_old to see if any needs to be updated. Again if part is not found error is raised and will need reveiw.
+A recursive formula is used for going down the BOM parents. Updated parts will be assigned in if statement to continue the update without needing to redo the entire process.
 
 
 def insert(obj, key, new_key, new_value): sets variable in object items with the listed. if key is in ibject then it is cleared.
@@ -416,7 +420,13 @@ def rearrange(obj, old_key, new_key):  clears and inserts new items listed/Rearr
 
 
 
-def Rearrange(bom_old, bom_new, tracker): " Main method of compare.py. Basically calls Update multiple times
+def Rearrange(bom_old, bom_new, tracker): The main method of compare.py. Essentially calls on Update multiple times.
+    Functions every time an update is identified, the newly updated parts may be found elsewhere in the BOM.
+    If its found else where, Update will not recognize it as an update but rather a not found part.
+    Rearranging it will allow update to identify it as an update. Step by step: previous length is set as -1 to not trigger
+    the not found condition immediately. The the previous length is set equal to the length of the not found part numbers list.
+    Update function is executed again to rearrange BOM.
+
 
 
 progressbar.py + package.py
