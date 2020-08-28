@@ -15,6 +15,7 @@ from copy import deepcopy
 
 import progressbar
 
+
 class Bom:
     """BOM Object that contains level data and part data
 
