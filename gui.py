@@ -617,7 +617,7 @@ class DocumentCollector(tk.Frame):
         self.password.bind("<FocusIn>", self.clear_password)
         self.password.pack(expand=True, fill='both', side='left', padx=(0, 2))
          #Will perform a mock login to confirm username and password
-        self.login = ModernButton(self.enoviaframe, text='Login', width=9, command=self.enoviacheck)
+        self.login = ModernButton(self.enoviaframe, text='Login', width=9, command=self.start_thread)
         self.login.pack(side='right', fill='x')
 
         self.path_checks()
@@ -751,18 +751,13 @@ class DocumentCollector(tk.Frame):
         except UnexpectedAlertPresentException:
             messagebox.showerror(title='Error', message='Invalid username or password')
             raise KeyError('Invalid username or password')
-       # except Exception as e:
-        #    messagebox.showerror(title='Error', message=f'Error {e} has occured')
-      #      raise e
-     #   else:
-       #     self.root.docs_user = self.user.get()
-       #     self.root.docs_pass = self.password.get()
-        #    messagebox.Message(title='Success', message='Login Successful')
-           # self.text1 = tk.text(,height=10,width=50)
-          #  self.text1.config(state="normal")
-           # self.text1.insert(tk.INSERT,"Login Successful")
-           # self.text1.config(state="disabled")
-           #self.text1.pack()
+        except Exception as e:
+            messagebox.showerror(title='Error', message=f'Error {e} has occured')
+            raise e
+        else:
+            self.root.docs_user = self.user.get()
+            self.root.docs_pass = self.password.get()
+            messagebox.Message(title='Success', message='Login Successful')
 
     def start_thread(self):
         """Threading for enovia check"""
